@@ -1,0 +1,429 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate }      from 'react-router-dom';
+import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { useStore }         from '../store/useStore';
+import { auth, isFirebaseConfigured } from '../lib/firebase';
+import {
+  fetchUserProjects, deleteProject, renameProject, saveProject,
+} from '../lib/firestoreHelpers';
+import { cloneProject, emptyAutomaton, relativeTime } from '../lib/utils';
+import { equivalence }  from '../engine/equivalence';
+import { thompson }     from '../engine/thompson';
+import type { Automaton, FirestoreProject } from '../types';
+import CanvasContextMenu from '../components/canvas/CanvasContextMenu';
+
+type ProjectCard = FirestoreProject & { id: string };
+
+// ── Tiny SVG thumbnail ───────────────────────────────────────────────────────
+function AutomatonThumbnail({ automaton }: { automaton: Automaton }) {
+  const W = 280, H = 120;
+  const states = automaton.states.slice(0, 12);
+  if (states.length === 0) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Empty automaton</span>
+      </div>
+    );
+  }
+  // Normalize positions to thumbnail
+  const xs = states.map(s => s.position.x);
+  const ys = states.map(s => s.position.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const range = { x: maxX - minX || 1, y: maxY - minY || 1 };
+  const pad = 20;
+  const sx = (x: number) => pad + ((x - minX) / range.x) * (W - pad * 2);
+  const sy = (y: number) => pad + ((y - minY) / range.y) * (H - pad * 2);
+
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+      {automaton.transitions.slice(0, 30).map(t => {
+        const from = states.find(s => s.id === t.from);
+        const to   = states.find(s => s.id === t.to);
+        if (!from || !to) return null;
+        return (
+          <line key={t.id}
+            x1={sx(from.position.x)} y1={sy(from.position.y)}
+            x2={sx(to.position.x)}   y2={sy(to.position.y)}
+            stroke="var(--border-light)" strokeWidth={1} />
+        );
+      })}
+      {states.map(s => (
+        <g key={s.id}>
+          <circle cx={sx(s.position.x)} cy={sy(s.position.y)} r={10}
+            fill={s.isAccept ? 'rgba(124,58,237,0.3)' : 'var(--bg-elevated)'}
+            stroke={s.isStart ? 'var(--accent)' : 'var(--border-light)'} strokeWidth={s.isStart ? 2 : 1} />
+          {s.isAccept && (
+            <circle cx={sx(s.position.x)} cy={sy(s.position.y)} r={7}
+              fill="none" stroke="var(--border-light)" strokeWidth={1} />
+          )}
+          <text x={sx(s.position.x)} y={sy(s.position.y) + 1}
+            dominantBaseline="middle" textAnchor="middle"
+            fontSize={7} fill="var(--text-secondary)" style={{ fontFamily: 'monospace' }}>
+            {s.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// ── New Project Modal ────────────────────────────────────────────────────────
+interface NewProjectModalProps {
+  onClose:  () => void;
+  onCreate: (automaton: Automaton) => Promise<void>;
+  onWorker: (regex: string, name: string, extraAlphabet: string[]) => void;
+  workerStatus: 'idle' | 'running' | 'error';
+}
+
+function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProjectModalProps) {
+  const [tab,        setTab]        = useState<'nfa' | 'dfa' | 'regex'>('nfa');
+  const [name,       setName]       = useState('');
+  const [regex,      setRegex]      = useState('');
+  const [regexName,  setRegexName]  = useState('');
+  const [regexAlpha, setRegexAlpha] = useState('');
+  const [regexError, setRegexError] = useState('');
+
+  const handleCreate = async () => {
+    const n = name.trim() || (tab === 'nfa' ? 'New NFA' : 'New DFA');
+    const id = crypto.randomUUID();
+    await onCreate(emptyAutomaton(id, n, tab === 'nfa' ? 'NFA' : 'DFA'));
+  };
+
+  const handleRegex = () => {
+    if (!regex.trim()) { setRegexError('Enter a regex'); return; }
+    try {
+      thompson(regex); // validate locally first
+      setRegexError('');
+      const projectName = regexName.trim() || `NFA for /${regex}/`;
+      const extraAlpha  = regexAlpha
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && s !== 'ε');
+      onWorker(regex, projectName, extraAlpha);
+    } catch (e) {
+      setRegexError(e instanceof Error ? e.message.replace('INVALID_REGEX: ', '') : 'Invalid');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <p className="modal-title">New Project</p>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+          {(['nfa', 'dfa', 'regex'] as const).map(t => (
+            <button key={t} className={`btn btn-sm ${tab === t ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setTab(t)}>
+              {t === 'nfa' ? 'Empty NFA' : t === 'dfa' ? 'Empty DFA' : 'Regex → NFA'}
+            </button>
+          ))}
+        </div>
+
+        {tab !== 'regex' ? (
+          <>
+            <input className="input" placeholder="Project name (optional)"
+              value={name} onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+              autoFocus style={{ marginBottom: 12 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" onClick={handleCreate}>Create</button>
+              <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Operators: <code>|</code> union, <code>*</code> Kleene, <code>()</code> grouping.
+              Use <code>ε</code> or <code>#</code> for epsilon.
+            </p>
+            <input className="input" placeholder="Project / language name (optional)"
+              value={regexName} onChange={e => setRegexName(e.target.value)}
+              style={{ marginBottom: 8 }} />
+            <input className="input" placeholder="Alphabet Σ (comma-separated, e.g. a, b, c)"
+              value={regexAlpha} onChange={e => setRegexAlpha(e.target.value)}
+              style={{ marginBottom: 8, fontFamily: 'monospace' }} />
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+              Symbols from the regex are auto-included. Add extra symbols here if your language uses more.
+            </p>
+            <input className="input" placeholder="Regex e.g. (a|b)*abb"
+              value={regex} onChange={e => { setRegex(e.target.value); setRegexError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleRegex(); }}
+              autoFocus style={{ marginBottom: 4, fontFamily: 'monospace' }} />
+            {regexError && <p style={{ fontSize: 11, color: 'var(--red)', marginBottom: 8 }}>{regexError}</p>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn btn-primary" disabled={workerStatus === 'running'} onClick={handleRegex}>
+                {workerStatus === 'running' ? <span className="spinner" /> : null} Build NFA
+              </button>
+              <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard page ────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user, setActiveProject, dispatchToWorker, workerStatus } = useStore();
+
+  const [projects,    setProjects]    = useState<ProjectCard[]>([]);
+  const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  const [showModal,   setShowModal]   = useState(false);
+  const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number; id: string } | null>(null);
+  const [loading,     setLoading]     = useState(false);
+  const [eqResult,    setEqResult]    = useState<{ equivalent: boolean; ids: string[] } | null>(null);
+
+  const loadProjects = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const list = await fetchUserProjects(user.uid);
+    setProjects(list.sort((a, b) => b.updatedAt - a.updatedAt));
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { loadProjects(); }, [loadProjects]);
+
+  const signIn = async () => {
+    if (!auth) return;
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  };
+
+  const signOutUser = async () => {
+    if (!auth) return;
+    await signOut(auth);
+  };
+
+  // Toggle card selection
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Open project
+  const openProject = (card: ProjectCard) => {
+    const automaton = JSON.parse(card.automatonJson) as Automaton;
+    setActiveProject(automaton);
+    navigate(`/canvas/${card.id}`);
+  };
+
+  // Create new project
+  const createProject = async (automaton: Automaton) => {
+    setActiveProject(automaton);
+    if (user) {
+      await saveProject(automaton.id, automaton, user.uid);
+    }
+    setShowModal(false);
+    navigate(`/canvas/${automaton.id}`);
+  };
+
+  // Regex → NFA via worker
+  const buildRegexNfa = (regex: string, name: string, extraAlphabet: string[]) => {
+    dispatchToWorker(
+      { type: 'THOMPSON', payload: { regex } },
+      async result => {
+        // Merge extra alphabet symbols the user specified
+        const mergedAlpha = [...new Set([...result.alphabet, ...extraAlphabet])];
+        const namedResult = { ...result, name, alphabet: mergedAlpha };
+        setActiveProject(namedResult);
+        if (user) await saveProject(namedResult.id, namedResult, user.uid);
+        setShowModal(false);
+        navigate(`/canvas/${namedResult.id}`);
+      },
+      () => {},
+    );
+  };
+
+  // Delete
+  const handleDelete = async (id: string) => {
+    await deleteProject(id);
+    setProjects(p => p.filter(c => c.id !== id));
+  };
+
+  // Rename
+  const handleRename = async (id: string) => {
+    const current = projects.find(p => p.id === id)?.name ?? '';
+    const name    = prompt('Rename project:', current);
+    if (!name?.trim()) return;
+    await renameProject(id, name.trim());
+    setProjects(p => p.map(c => c.id === id ? { ...c, name: name.trim() } : c));
+  };
+
+  // Equivalence check
+  const checkEquivalence = () => {
+    const ids = Array.from(selected);
+    if (ids.length !== 2) return;
+    const cards = ids.map(id => projects.find(p => p.id === id)!);
+    for (const c of cards) {
+      if (c.type !== 'DFA') {
+        alert('Equivalence check requires deterministic automata.');
+        return;
+      }
+    }
+    const a1 = JSON.parse(cards[0]!.automatonJson) as Automaton;
+    const a2 = JSON.parse(cards[1]!.automatonJson) as Automaton;
+    const result = equivalence(a1, a2);
+    setEqResult({ equivalent: result.equivalent, ids });
+  };
+
+  // Clone a project
+  const cloneCard = async (id: string) => {
+    const card = projects.find(p => p.id === id);
+    if (!card || !user) return;
+    const src  = JSON.parse(card.automatonJson) as Automaton;
+    const copy = cloneProject(src);
+    await saveProject(copy.id, copy, user.uid);
+    await loadProjects();
+  };
+
+  const selectedArr = Array.from(selected);
+  const canCheckEq  = selectedArr.length === 2;
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <header className="dashboard-header">
+        <span className="logo">⬡ DFAVisualizer</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {canCheckEq && (
+            <button className="btn btn-ghost btn-sm" onClick={checkEquivalence}>
+              Check Equivalence
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            + New Project
+          </button>
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {user.photoURL && (
+                <img src={user.photoURL} alt="avatar"
+                  style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid var(--border-light)' }} />
+              )}
+              <button className="btn btn-ghost btn-sm" onClick={signOutUser}>Sign out</button>
+            </div>
+          ) : (
+            isFirebaseConfigured && (
+              <button className="btn btn-ghost" onClick={signIn} id="google-signin-btn">
+                Sign in with Google
+              </button>
+            )
+          )}
+        </div>
+      </header>
+
+      {/* Equivalence result banner */}
+      {eqResult && (
+        <div style={{
+          padding: '10px 32px',
+          background: eqResult.equivalent ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+          borderBottom: `1px solid ${eqResult.equivalent ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontSize: 13,
+          color: eqResult.equivalent ? 'var(--green)' : 'var(--red)',
+        }}>
+          <span>
+            {eqResult.equivalent ? '✓ The two selected DFAs are equivalent.' : '✗ The two selected DFAs are NOT equivalent.'}
+          </span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEqResult(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {!user ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
+            <div style={{ fontSize: 64, marginBottom: 8 }}>⬡</div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>DFAVisualizer</h1>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
+              Create, simulate, and transform finite automata
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                Try without signing in
+              </button>
+              {isFirebaseConfigured && (
+                <button className="btn btn-ghost" onClick={signIn}>Sign in with Google</button>
+              )}
+            </div>
+          </div>
+        ) : loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <span className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
+          </div>
+        ) : projects.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>No projects yet</p>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>Create your first project</button>
+          </div>
+        ) : (
+          <div className="project-grid">
+            {projects.map(card => {
+              const automaton = JSON.parse(card.automatonJson) as Automaton;
+              const isSelected = selected.has(card.id);
+              return (
+                <div
+                  key={card.id}
+                  id={`project-card-${card.id}`}
+                  className={`project-card${isSelected ? ' selected' : ''}`}
+                  onClick={() => openProject(card)}
+                  onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, id: card.id }); }}
+                >
+                  <div className="project-thumbnail">
+                    <AutomatonThumbnail automaton={automaton} />
+                  </div>
+                  <div className="project-card-body">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span className="project-card-name">{card.name}</span>
+                      <span className={`badge ${card.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>{card.type}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="project-card-meta">{relativeTime(card.updatedAt)}</span>
+                      <input type="checkbox" checked={isSelected}
+                        onChange={e => toggleSelect(card.id, e as unknown as React.MouseEvent)}
+                        onClick={e => e.stopPropagation()}
+                        title="Select for equivalence check"
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <CanvasContextMenu
+          x={ctxMenu.x} y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          items={[
+            { label: 'Open',   action: () => { const c = projects.find(p => p.id === ctxMenu.id); if (c) openProject(c); } },
+            { label: 'Clone',  action: () => cloneCard(ctxMenu.id) },
+            { label: 'Rename', action: () => handleRename(ctxMenu.id) },
+            { label: '---',    action: () => {} },
+            { label: 'Delete', danger: true, action: () => handleDelete(ctxMenu.id) },
+          ]}
+        />
+      )}
+
+      {/* New project modal */}
+      {showModal && (
+        <NewProjectModal
+          onClose={() => setShowModal(false)}
+          onCreate={createProject}
+          onWorker={buildRegexNfa}
+          workerStatus={workerStatus}
+        />
+      )}
+    </div>
+  );
+}
