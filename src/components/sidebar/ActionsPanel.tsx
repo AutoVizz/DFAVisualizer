@@ -51,7 +51,9 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
       async result => {
         const canonical = canonicalize(result);
         const hash      = djb2Hash(canonical);
-        await upsertMinimizedDfa(hash, result, canonical);
+        if (user) {
+          await upsertMinimizedDfa(hash, result, canonical, user.uid);
+        }
         if (projectId) await updateProjectMinimizedId(projectId, hash);
         patchActiveProject({ minimizedDfaId: hash });
         setViewOnlyProject(result);

@@ -62,13 +62,10 @@ export interface EquivalenceResult {
 
 // ── Firestore Documents ─────────────────────────────────────────────────────
 
-export interface FirestoreUser {
-  email: string;
-  createdAt: number;
-}
 
 export interface FirestoreProject {
-  userId: string;
+  ownerId: string;
+  private: boolean;
   name: string;
   type: 'DFA' | 'NFA';
   automatonJson: string;
@@ -78,6 +75,8 @@ export interface FirestoreProject {
 }
 
 export interface FirestoreMinimizedDfa {
+  ownerId: string;
+  private: boolean;
   automatonJson: string;
   canonicalString: string;
 }

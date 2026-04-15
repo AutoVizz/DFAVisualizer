@@ -24,37 +24,48 @@ function isStackedLayout(automaton: Automaton): boolean {
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
-export async function fetchUserProjects(userId: string): Promise<(FirestoreProject & { id: string })[]> {
+export async function fetchUserProjects(ownerId: string): Promise<(FirestoreProject & { id: string })[]> {
   if (!db) return [];
-  const q = query(collection(db, 'projects'), where('userId', '==', userId));
+  const q = query(collection(db, 'projects'), where('ownerId', '==', ownerId));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreProject) }));
 }
 
 export async function fetchProject(projectId: string): Promise<(FirestoreProject & { id: string }) | null> {
   if (!db) return null;
-  const snap = await getDoc(doc(db, 'projects', projectId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...(snap.data() as FirestoreProject) };
+  try {
+    const snap = await getDoc(doc(db, 'projects', projectId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...(snap.data() as FirestoreProject) };
+  } catch {
+    // Permission denied or doc doesn't exist
+    return null;
+  }
 }
 
-export async function saveProject(projectId: string, automaton: Automaton, userId: string): Promise<void> {
+export async function saveProject(projectId: string, automaton: Automaton, ownerId: string): Promise<void> {
   if (!db) return;
-  const data: Omit<FirestoreProject, 'createdAt'> & { createdAt?: number; updatedAt: unknown } = {
-    userId,
+  const ref = doc(db, 'projects', projectId);
+  const data: Omit<FirestoreProject, 'createdAt' | 'updatedAt'> & { createdAt?: unknown; updatedAt: unknown } = {
+    ownerId,
+    private: true,
     name:           automaton.name,
     type:           automaton.type,
     automatonJson:  JSON.stringify(automaton),
     minimizedDfaId: automaton.minimizedDfaId,
     updatedAt:      serverTimestamp(),
   };
-  const ref = doc(db, 'projects', projectId);
-  const existing = await getDoc(ref);
-  if (existing.exists()) {
-    await updateDoc(ref, data);
-  } else {
-    await setDoc(ref, { ...data, createdAt: serverTimestamp() });
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists()) {
+      await updateDoc(ref, data);
+      return;
+    }
+  } catch {
+    // getDoc failed (permission denied = doc doesn't exist or not ours)
   }
+  // Doc doesn't exist — create it
+  await setDoc(ref, { ...data, createdAt: serverTimestamp() });
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
@@ -71,17 +82,22 @@ export async function renameProject(projectId: string, name: string): Promise<vo
 
 export async function fetchMinimizedDfa(hash: string): Promise<Automaton | null> {
   if (!db) return null;
-  const snap = await getDoc(doc(db, 'minimizedDfas', hash));
-  if (!snap.exists()) return null;
-  const data = snap.data() as FirestoreMinimizedDfa;
-  const parsed = JSON.parse(data.automatonJson) as Automaton;
-  // Backward compatibility for older cached minimized DFAs saved with stacked positions.
-  return isStackedLayout(parsed) ? autoLayout(parsed) : parsed;
+  try {
+    const snap = await getDoc(doc(db, 'minimizedDfas', hash));
+    if (!snap.exists()) return null;
+    const data = snap.data() as FirestoreMinimizedDfa;
+    const parsed = JSON.parse(data.automatonJson) as Automaton;
+    return isStackedLayout(parsed) ? autoLayout(parsed) : parsed;
+  } catch {
+    return null;
+  }
 }
 
-export async function upsertMinimizedDfa(hash: string, automaton: Automaton, canonicalString: string): Promise<void> {
+export async function upsertMinimizedDfa(hash: string, automaton: Automaton, canonicalString: string, ownerId: string): Promise<void> {
   if (!db) return;
   const data: FirestoreMinimizedDfa = {
+    ownerId,
+    private: false,
     automatonJson:  JSON.stringify(automaton),
     canonicalString,
   };

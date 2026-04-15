@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read: if resource == null 
+                  || resource.data.private == false 
+                  || (request.auth != null && request.auth.uid == resource.data.ownerId);
+
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid 
+                    && request.resource.data.private is bool;
+
+      allow update: if request.auth != null 
+                    && request.auth.uid == resource.data.ownerId 
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.private is bool;
+
+      allow delete: if request.auth != null 
+                    && request.auth.uid == resource.data.ownerId;
+    }
+  }
+}

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate }      from 'react-router-dom';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { isFirebaseConfigured } from '../lib/firebase';
 import { useStore }         from '../store/useStore';
-import { auth, isFirebaseConfigured } from '../lib/firebase';
+import { signInWithGithub, signOut as libSignOut } from '../lib/auth';
 import {
   fetchUserProjects, deleteProject, renameProject, saveProject,
 } from '../lib/firestoreHelpers';
@@ -188,13 +188,20 @@ export default function Dashboard() {
   useEffect(() => { loadProjects(); }, [loadProjects]);
 
   const signIn = async () => {
-    if (!auth) return;
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    try {
+      await signInWithGithub();
+    } catch (err: any) {
+      console.error(err);
+      alert('OAuth Error: ' + (err?.message || 'Unknown error'));
+    }
   };
 
   const signOutUser = async () => {
-    if (!auth) return;
-    await signOut(auth);
+    try {
+      await libSignOut();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Toggle card selection
@@ -310,8 +317,8 @@ export default function Dashboard() {
             </div>
           ) : (
             isFirebaseConfigured && (
-              <button className="btn btn-ghost" onClick={signIn} id="google-signin-btn">
-                Sign in with Google
+              <button className="btn btn-ghost" onClick={signIn} id="github-signin-btn">
+                Sign in with GitHub
               </button>
             )
           )}
@@ -349,7 +356,7 @@ export default function Dashboard() {
                 Try without signing in
               </button>
               {isFirebaseConfigured && (
-                <button className="btn btn-ghost" onClick={signIn}>Sign in with Google</button>
+                <button className="btn btn-ghost" onClick={signIn}>Sign in with GitHub</button>
               )}
             </div>
           </div>
