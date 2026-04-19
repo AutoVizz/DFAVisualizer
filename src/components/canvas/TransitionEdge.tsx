@@ -42,15 +42,25 @@ function TransitionEdge({
   data,
   markerEnd,
   style,
+  selected,
 }: EdgeProps<TransitionEdgeData>) {
   const label = data?.transition.symbols.join(', ') ?? '';
   const isSelfLoop = source === target;
   const isActive = !!data?.isActive;
-  const edgeColor = isActive ? 'var(--yellow)' : 'var(--border-light)';
+  const isSelected = !!selected;
+
+  // Keep simulation and user-selection highlights visually distinct.
+  const edgeColor = isActive && isSelected
+    ? 'var(--orange)'
+    : isActive
+    ? 'var(--yellow)'
+    : isSelected
+    ? 'var(--blue)'
+    : 'var(--border-light)';
   const edgeStyle = {
     ...(style ?? {}),
     stroke: edgeColor,
-    strokeWidth: isActive ? 3 : 2,
+    strokeWidth: isActive || isSelected ? 3 : 2,
   } as React.CSSProperties;
   const marker = typeof markerEnd === 'string'
     ? markerEnd
@@ -85,8 +95,8 @@ function TransitionEdge({
           <div
             style={{
               ...labelStyle,
-              border: `1px solid ${isActive ? 'var(--yellow)' : 'var(--border)'}`,
-              color: isActive ? 'var(--yellow)' : labelStyle.color,
+              border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border)'}`,
+              color: isActive || isSelected ? edgeColor : labelStyle.color,
               transform: `translate(-50%, -50%) translate(${midX}px,${midY}px)`,
             }}
             className="nodrag nopan"
@@ -157,8 +167,8 @@ function TransitionEdge({
         <div
           style={{
             ...labelStyle,
-            border: `1px solid ${isActive ? 'var(--yellow)' : 'var(--border)'}`,
-            color: isActive ? 'var(--yellow)' : labelStyle.color,
+            border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border)'}`,
+            color: isActive || isSelected ? edgeColor : labelStyle.color,
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
           className="nodrag nopan"

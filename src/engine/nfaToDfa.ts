@@ -33,7 +33,7 @@ export function nfaToDfa(nfa: Automaton): Automaton {
     throw new Error('NFA has no start state');
   }
 
-  const alphabet = nfa.alphabet.filter(sym => sym !== 'ε');
+  const alphabet = [...new Set(nfa.alphabet.filter(sym => sym !== 'ε'))];
 
   // Map from DFA state key → DFA state id
   const dfaStateMap = new Map<string, string>();
@@ -80,8 +80,8 @@ export function nfaToDfa(nfa: Automaton): Automaton {
       const moved  = move(nfa, currentSubset, sym);
       const closed = epsilonClosure(nfa, moved);
 
-      if (closed.size === 0) continue;
-
+      // Keep empty-set moves as an explicit dead state (subset = ∅)
+      // so the resulting automaton is a complete DFA.
       const toKey = setKey(closed);
       getOrCreate(toKey, closed);
       const toId = dfaStateMap.get(toKey)!;

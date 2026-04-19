@@ -5,7 +5,6 @@ import { canonicalize }   from '../../engine/equivalence';
 import { djb2Hash }       from '../../lib/utils';
 import {
   saveProject as fsave,
-  fetchMinimizedDfa,
   upsertMinimizedDfa,
   updateProjectMinimizedId,
 } from '../../lib/firestoreHelpers';
@@ -31,7 +30,7 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
   const handleConvert = () => {
     if (!isNFA || isEmpty) return;
     dispatchToWorker(
-      { type: 'NFA_TO_DFA', payload: activeProject },
+      { type: 'NFA_TO_MIN_DFA', payload: activeProject },
       result => { setViewOnlyProject(result); navigate('/view'); },
       () => {},
     );
@@ -39,12 +38,6 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
 
   const handleMinimize = async () => {
     if (!isDFA || isEmpty) return;
-
-    // Lazy cache check
-    if (activeProject.minimizedDfaId && projectId) {
-      const cached = await fetchMinimizedDfa(activeProject.minimizedDfaId);
-      if (cached) { setViewOnlyProject(cached); navigate('/view'); return; }
-    }
 
     dispatchToWorker(
       { type: 'MINIMIZE', payload: activeProject },
@@ -85,7 +78,7 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
           title={isDFA ? 'Already a DFA' : ''}
         >
           {isWorking ? <span className="spinner" /> : null}
-          Convert NFA → DFA
+          Convert NFA → Minimized DFA
         </button>
 
         <button

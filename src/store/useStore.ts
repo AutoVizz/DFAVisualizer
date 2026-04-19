@@ -84,17 +84,17 @@ export const useStore = create<Store>((set, get) => ({
 
   updateStates: (states) =>
     set(s => s.activeProject
-      ? { activeProject: { ...s.activeProject, states } }
+      ? { activeProject: { ...s.activeProject, states, minimizedDfaId: null } }
       : {}),
 
   updateTransitions: (transitions) =>
     set(s => s.activeProject
-      ? { activeProject: { ...s.activeProject, transitions } }
+      ? { activeProject: { ...s.activeProject, transitions, minimizedDfaId: null } }
       : {}),
 
   updateAlphabet: (alphabet) =>
     set(s => s.activeProject
-      ? { activeProject: { ...s.activeProject, alphabet } }
+      ? { activeProject: { ...s.activeProject, alphabet, minimizedDfaId: null } }
       : {}),
 
   setViewOnlyProject: (project) =>

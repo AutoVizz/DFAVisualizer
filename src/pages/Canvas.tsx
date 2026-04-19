@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore }  from '../store/useStore';
 import { fetchProject, saveProject } from '../lib/firestoreHelpers';
@@ -11,8 +11,11 @@ export default function Canvas() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {
-    activeProject, user, setActiveProject,
+    activeProject, user, setActiveProject, patchActiveProject,
   } = useStore();
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
+  const [projectNameInput, setProjectNameInput] = useState('');
+  const [isProjectReadyForSave, setIsProjectReadyForSave] = useState(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
@@ -20,30 +23,50 @@ export default function Canvas() {
   // Load project on mount
   useEffect(() => {
     if (!id) return;
-
-    const alreadyLoaded = activeProject?.id === id;
-    if (alreadyLoaded) return;
+    let cancelled = false;
 
     const load = async () => {
-      // Try Firestore first
+      // Guard autosave until we've loaded the intended project for this route.
+      setIsProjectReadyForSave(false);
+
+      // When signed in, fetch from backend; do not fall back to empty for unknown ids,
+      // as that can overwrite existing projects if a transient read issue occurs.
       if (user) {
         const card = await fetchProject(id);
+        if (cancelled) return;
+
         if (card) {
-          setActiveProject(JSON.parse(card.automatonJson) as Automaton);
+          const parsed = JSON.parse(card.automatonJson) as Automaton;
+          setActiveProject(parsed);
+          setIsProjectReadyForSave(true);
           return;
         }
+
+        // Only create a blank project for explicit new routes.
+        if (id.startsWith('new-')) {
+          setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+          setIsProjectReadyForSave(true);
+        }
+        return;
       }
-      // Fall back to blank canvas for the /canvas/new-* case
-      setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+
+      // Signed out: only local blank for explicit new routes.
+      if (id.startsWith('new-')) {
+        setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+      }
     };
 
     load();
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   // Auto-save debounced 1s
   useEffect(() => {
-    if (!activeProject || !user || !id) return;
+    if (!activeProject || !user || !id || !isProjectReadyForSave) return;
+    if (activeProject.id !== id) return;
     const serialized = JSON.stringify(activeProject);
     if (serialized === lastSavedRef.current) return;
 
@@ -56,7 +79,25 @@ export default function Canvas() {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [activeProject, user, id]);
+  }, [activeProject, user, id, isProjectReadyForSave]);
+
+  const startRenameProject = () => {
+    if (!activeProject) return;
+    setProjectNameInput(activeProject.name);
+    setIsRenamingProject(true);
+  };
+
+  const commitRenameProject = () => {
+    if (!activeProject) return;
+    const trimmed = projectNameInput.trim();
+    if (!trimmed) {
+      setProjectNameInput(activeProject.name);
+      setIsRenamingProject(false);
+      return;
+    }
+    patchActiveProject({ name: trimmed });
+    setIsRenamingProject(false);
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -72,7 +113,28 @@ export default function Canvas() {
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Dashboard</button>
         {activeProject && (
           <>
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{activeProject.name}</span>
+            {isRenamingProject ? (
+              <>
+                <input
+                  className="input"
+                  value={projectNameInput}
+                  onChange={e => setProjectNameInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitRenameProject();
+                    if (e.key === 'Escape') setIsRenamingProject(false);
+                  }}
+                  autoFocus
+                  style={{ width: 240, maxWidth: '40vw', height: 30, padding: '4px 10px' }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={commitRenameProject}>Save</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setIsRenamingProject(false)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{activeProject.name}</span>
+                <button className="btn btn-ghost btn-sm" onClick={startRenameProject}>Rename</button>
+              </>
+            )}
             <span className={`badge ${activeProject.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>
               {activeProject.type}
             </span>

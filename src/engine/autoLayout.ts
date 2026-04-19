@@ -3,6 +3,11 @@ import type { Automaton } from '../types';
 
 const NODE_WIDTH  = 60;
 const NODE_HEIGHT = 60;
+const COLLISION_STEP = 80;
+
+function keyFor(x: number, y: number): string {
+  return `${Math.round(x)},${Math.round(y)}`;
+}
 
 /**
  * Apply dagre auto-layout to an automaton.
@@ -41,5 +46,19 @@ export function autoLayout(automaton: Automaton): Automaton {
     };
   });
 
-  return { ...automaton, states: updatedStates };
+  // Enforce unique coordinates in case the layout engine yields duplicates
+  // (for example, certain disconnected/degenerate graphs).
+  const used = new Set<string>();
+  const uniquedStates = updatedStates.map(state => {
+    let x = state.position.x;
+    let y = state.position.y;
+    while (used.has(keyFor(x, y))) {
+      x += COLLISION_STEP;
+      y += COLLISION_STEP;
+    }
+    used.add(keyFor(x, y));
+    return { ...state, position: { x, y } };
+  });
+
+  return { ...automaton, states: uniquedStates };
 }

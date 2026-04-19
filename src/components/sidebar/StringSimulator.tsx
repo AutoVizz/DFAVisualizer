@@ -23,6 +23,15 @@ export default function StringSimulator() {
   const atEnd   = isSimulating && simulationStep === history.length - 1;
   const atStart = simulationStep === 0;
 
+  const tryRun = (runner: () => void) => {
+    try {
+      runner();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(message);
+    }
+  };
+
   return (
     <div className="sidebar-section">
       <p className="sidebar-section-title">Simulate</p>
@@ -40,7 +49,7 @@ export default function StringSimulator() {
         <button
           className="btn btn-primary btn-sm" style={{ flex: 1 }}
           disabled={disabled}
-          onClick={() => runSimulationFull(input)}
+          onClick={() => tryRun(() => runSimulationFull(input))}
         >
           ▶ Run
         </button>
@@ -56,8 +65,11 @@ export default function StringSimulator() {
           className="btn btn-ghost btn-sm"
           disabled={disabled}
           onClick={() => {
-            if (!isSimulating) runSimulation(input);
-            else stepForward();
+            if (!isSimulating) {
+              tryRun(() => runSimulation(input));
+            } else {
+              stepForward();
+            }
           }}
           title="Step forward"
         >

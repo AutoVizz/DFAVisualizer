@@ -14,6 +14,10 @@ self.onmessage = (e: MessageEvent<WorkerInMessage>) => {
         result = nfaToDfa(msg.payload);
         break;
 
+      case 'NFA_TO_MIN_DFA':
+        result = minimize(nfaToDfa(msg.payload));
+        break;
+
       case 'MINIMIZE':
         result = minimize(msg.payload);
         break;
@@ -21,6 +25,16 @@ self.onmessage = (e: MessageEvent<WorkerInMessage>) => {
       case 'THOMPSON':
         result = thompson(msg.payload.regex);
         break;
+
+      case 'THOMPSON_TO_MIN_DFA': {
+        const builtNfa = thompson(msg.payload.regex);
+        const mergedAlphabet = [
+          ...new Set([...(builtNfa.alphabet ?? []), ...(msg.payload.extraAlphabet ?? []).filter(s => s !== 'ε')]),
+        ];
+        const nfaWithAlphabet = { ...builtNfa, alphabet: mergedAlphabet };
+        result = minimize(nfaToDfa(nfaWithAlphabet));
+        break;
+      }
 
       default: {
         const _exhaustive: never = msg;

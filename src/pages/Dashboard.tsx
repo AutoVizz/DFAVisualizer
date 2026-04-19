@@ -4,11 +4,19 @@ import { isFirebaseConfigured } from '../lib/firebase';
 import { useStore }         from '../store/useStore';
 import { signInWithGithub, signOut as libSignOut } from '../lib/auth';
 import {
-  fetchUserProjects, deleteProject, renameProject, saveProject,
+  fetchUserProjects,
+  deleteProject,
+  renameProject,
+  saveProject,
+  fetchMinimizedDfa,
+  upsertMinimizedDfa,
+  updateProjectMinimizedId,
 } from '../lib/firestoreHelpers';
-import { cloneProject, emptyAutomaton, relativeTime } from '../lib/utils';
-import { equivalence }  from '../engine/equivalence';
+import { cloneProject, djb2Hash, emptyAutomaton, relativeTime } from '../lib/utils';
+import { canonicalize }  from '../engine/equivalence';
 import { thompson }     from '../engine/thompson';
+import { nfaToDfa } from '../engine/nfaToDfa';
+import { minimize } from '../engine/minimize';
 import type { Automaton, FirestoreProject } from '../types';
 import CanvasContextMenu from '../components/canvas/CanvasContextMenu';
 
@@ -95,7 +103,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
     try {
       thompson(regex); // validate locally first
       setRegexError('');
-      const projectName = regexName.trim() || `NFA for /${regex}/`;
+      const projectName = regexName.trim() || `Minimized DFA for /${regex}/`;
       const extraAlpha  = regexAlpha
         .split(',')
         .map(s => s.trim())
@@ -116,7 +124,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
           {(['nfa', 'dfa', 'regex'] as const).map(t => (
             <button key={t} className={`btn btn-sm ${tab === t ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setTab(t)}>
-              {t === 'nfa' ? 'Empty NFA' : t === 'dfa' ? 'Empty DFA' : 'Regex → NFA'}
+              {t === 'nfa' ? 'Empty NFA' : t === 'dfa' ? 'Empty DFA' : 'Regex → Minimized DFA'}
             </button>
           ))}
         </div>
@@ -154,7 +162,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
             {regexError && <p style={{ fontSize: 11, color: 'var(--red)', marginBottom: 8 }}>{regexError}</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-primary" disabled={workerStatus === 'running'} onClick={handleRegex}>
-                {workerStatus === 'running' ? <span className="spinner" /> : null} Build NFA
+                {workerStatus === 'running' ? <span className="spinner" /> : null} Build Minimized DFA
               </button>
               <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
             </div>
@@ -175,7 +183,35 @@ export default function Dashboard() {
   const [showModal,   setShowModal]   = useState(false);
   const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number; id: string } | null>(null);
   const [loading,     setLoading]     = useState(false);
-  const [eqResult,    setEqResult]    = useState<{ equivalent: boolean; ids: string[] } | null>(null);
+  const [eqResult,    setEqResult]    = useState<{
+    equivalent: boolean;
+    ids: string[];
+    names: [string, string];
+  } | null>(null);
+
+  const getMinimizedDfaForEquivalence = useCallback(async (card: ProjectCard) => {
+    if (card.minimizedDfaId) {
+      const cached = await fetchMinimizedDfa(card.minimizedDfaId);
+      if (cached) {
+        const canonical = canonicalize(cached);
+        return { automaton: cached, hash: djb2Hash(canonical), canonical };
+      }
+    }
+
+    const source = JSON.parse(card.automatonJson) as Automaton;
+    const asDfa = source.type === 'NFA' ? nfaToDfa(source) : source;
+    const minimized = minimize(asDfa);
+    const canonical = canonicalize(minimized);
+    const hash = djb2Hash(canonical);
+
+    if (user) {
+      await upsertMinimizedDfa(hash, minimized, canonical, user.uid);
+      await updateProjectMinimizedId(card.id, hash);
+      setProjects(prev => prev.map(p => (p.id === card.id ? { ...p, minimizedDfaId: hash } : p)));
+    }
+
+    return { automaton: minimized, hash, canonical };
+  }, [user]);
 
   const loadProjects = useCallback(async () => {
     if (!user) return;
@@ -231,14 +267,12 @@ export default function Dashboard() {
     navigate(`/canvas/${automaton.id}`);
   };
 
-  // Regex → NFA via worker
+  // Regex → minimized DFA via worker
   const buildRegexNfa = (regex: string, name: string, extraAlphabet: string[]) => {
     dispatchToWorker(
-      { type: 'THOMPSON', payload: { regex } },
+      { type: 'THOMPSON_TO_MIN_DFA', payload: { regex, extraAlphabet } },
       async result => {
-        // Merge extra alphabet symbols the user specified
-        const mergedAlpha = [...new Set([...result.alphabet, ...extraAlphabet])];
-        const namedResult = { ...result, name, alphabet: mergedAlpha };
+        const namedResult = { ...result, name };
         setActiveProject(namedResult);
         if (user) await saveProject(namedResult.id, namedResult, user.uid);
         setShowModal(false);
@@ -263,21 +297,25 @@ export default function Dashboard() {
     setProjects(p => p.map(c => c.id === id ? { ...c, name: name.trim() } : c));
   };
 
-  // Equivalence check
-  const checkEquivalence = () => {
+  // Equivalence check (NFA supported via internal NFA→DFA→minimize)
+  const checkEquivalence = async () => {
     const ids = Array.from(selected);
     if (ids.length !== 2) return;
     const cards = ids.map(id => projects.find(p => p.id === id)!);
-    for (const c of cards) {
-      if (c.type !== 'DFA') {
-        alert('Equivalence check requires deterministic automata.');
-        return;
-      }
+    try {
+      const [left, right] = await Promise.all([
+        getMinimizedDfaForEquivalence(cards[0]!),
+        getMinimizedDfaForEquivalence(cards[1]!),
+      ]);
+      setEqResult({
+        equivalent: left.hash === right.hash,
+        ids,
+        names: [cards[0]!.name, cards[1]!.name],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`Equivalence check failed: ${message}`);
     }
-    const a1 = JSON.parse(cards[0]!.automatonJson) as Automaton;
-    const a2 = JSON.parse(cards[1]!.automatonJson) as Automaton;
-    const result = equivalence(a1, a2);
-    setEqResult({ equivalent: result.equivalent, ids });
   };
 
   // Clone a project
@@ -336,7 +374,9 @@ export default function Dashboard() {
           color: eqResult.equivalent ? 'var(--green)' : 'var(--red)',
         }}>
           <span>
-            {eqResult.equivalent ? '✓ The two selected DFAs are equivalent.' : '✗ The two selected DFAs are NOT equivalent.'}
+            {eqResult.equivalent
+              ? `✓ ${eqResult.names[0]} is equivalent to ${eqResult.names[1]}.`
+              : `✗ ${eqResult.names[0]} is not equal to ${eqResult.names[1]}.`}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={() => setEqResult(null)}>Dismiss</button>
         </div>
