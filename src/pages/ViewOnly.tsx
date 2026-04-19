@@ -3,6 +3,7 @@ import { useStore }    from '../store/useStore';
 import { cloneProject } from '../lib/utils';
 import { saveProject }  from '../lib/firestoreHelpers';
 import FlowCanvas       from '../components/canvas/FlowCanvas';
+import { VisibilityIcon } from '../components/Icons';
 
 export default function ViewOnly() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function ViewOnly() {
       {/* View-only canvas */}
       <div style={{ flex: 1, position: 'relative' }}>
         <div className="viewonly-banner">
-          👁 Read-only view — use "Import" to edit this automaton
+          <VisibilityIcon size={16} /> Read-only view — use "Import" to edit this automaton
         </div>
         <FlowCanvas readOnly={true} projectOverride={viewOnlyProject} />
       </div>

@@ -18,6 +18,7 @@ import CanvasContextMenu from './CanvasContextMenu';
 import EdgePopover       from './EdgePopover';
 import type { Automaton, State, Transition } from '../../types';
 import { nextStateLabel } from '../../lib/utils';
+import { emitGlobalAlert } from '../GlobalBanner';
 
 const NODE_TYPES = { stateNode: StateNode };
 const EDGE_TYPES = { transitionEdge: TransitionEdge };
@@ -79,13 +80,6 @@ function toRFEdges(
         hasBidirectional,
         isActive,
       },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: isActive ? 'var(--yellow)' : 'var(--border-light)',
-        width: 22,
-        height: 22,
-        markerUnits: 'userSpaceOnUse',
-      },
     });
   }
   return edges;
@@ -124,6 +118,8 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   const [transitionFromSource, setTransitionFromSource] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [renameValue, setRenameValue]   = useState('');
+  const [editingEdgeId,    setEditingEdgeId]    = useState<string | null>(null);
+  const [editingEdgeValue, setEditingEdgeValue] = useState('');
 
   const rfInstance = useRef<ReactFlowInstance | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -167,6 +163,32 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     setRfEdges(toRFEdges(project.transitions, activeTransitionIds));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.transitions, activeTransitionIds]);
+
+  // Inject inline-edit data into the matching edge whenever editing state changes
+  useEffect(() => {
+    setRfEdges(edges => edges.map(e => {
+      const isEditing = e.id === editingEdgeId;
+      if (!isEditing && !e.data?.isEditing) return e; // skip unchanged
+      return {
+        ...e,
+        data: {
+          ...e.data!,
+          isEditing,
+          editValue:   isEditing ? editingEdgeValue : undefined,
+          onEditChange: isEditing
+            ? (val: string) => setEditingEdgeValue(val)
+            : undefined,
+          onEditCommit: isEditing
+            ? () => commitEdgeEdit(e.id, editingEdgeValue)
+            : undefined,
+          onEditCancel: isEditing
+            ? () => setEditingEdgeId(null)
+            : undefined,
+        },
+      };
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingEdgeId, editingEdgeValue]);
 
   // Hotkeys:
   // - T: start add-transition mode from currently selected node (exactly one)
@@ -321,7 +343,7 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
       }
 
       if (conflicts.size > 0) {
-        alert(
+        emitGlobalAlert(
           `DFA constraint: symbol(s) ${Array.from(conflicts).join(', ')} already have an outgoing transition from this state.`,
         );
       }
@@ -475,9 +497,49 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     ];
   }, [ctxMenu, activeProject, updateStatesPreservingLivePositions, updateStates, updateTransitions, transitionFromSource]);
 
+  // ── Inline edge symbol editing ──────────────────────────────────────────────
+  const commitEdgeEdit = useCallback((edgeKey: string, rawValue: string) => {
+    setEditingEdgeId(null);
+    if (!activeProject) return;
+    const [fromId, toId] = edgeKey.split('__');
+    let symbols = [...new Set(rawValue.split(',').map(s => s.trim()).filter(Boolean))];
+    if (symbols.length === 0) return;
+
+    if (activeProject.type === 'DFA') {
+      const conflicts = new Set<string>();
+      const duplicates = new Set<string>();
+      for (const symbol of symbols) {
+        const existing = activeProject.transitions.find(
+          t => t.from === fromId && t.symbols.includes(symbol) && !(t.from === fromId && t.to === toId),
+        );
+        if (existing) {
+          if (existing.to === toId) duplicates.add(symbol);
+          else conflicts.add(symbol);
+        }
+      }
+      if (conflicts.size > 0) {
+        emitGlobalAlert(
+          `DFA constraint: symbol(s) ${Array.from(conflicts).join(', ')} already have an outgoing transition from this state.`,
+        );
+      }
+      symbols = symbols.filter(sym => !conflicts.has(sym) && !duplicates.has(sym));
+      if (symbols.length === 0) return;
+    }
+
+    const newAlphaSymbols = symbols.filter(
+      s => s !== 'ε' && !activeProject.alphabet.includes(s),
+    );
+    if (newAlphaSymbols.length > 0) updateAlphabet([...activeProject.alphabet, ...newAlphaSymbols]);
+
+    const newTr: Transition = { id: crypto.randomUUID(), from: fromId!, to: toId!, symbols };
+    updateTransitions([
+      ...activeProject.transitions.filter(t => !(t.from === fromId && t.to === toId)),
+      newTr,
+    ]);
+  }, [activeProject, updateAlphabet, updateTransitions]);
+
   const edgeMenuItems = useMemo(() => {
     if (!ctxMenu || ctxMenu.targetType !== 'edge' || !activeProject) return [];
-    // ctxMenu.targetId is the merged `from__to` id
     const [fromId, toId] = ctxMenu.targetId.split('__');
     const groupedTrans = activeProject.transitions.filter(
       t => t.from === fromId && t.to === toId,
@@ -487,48 +549,9 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
       {
         label: 'Edit Symbols',
         action: () => {
-          const sym = prompt('Edit symbols (comma-separated):', allSymbols);
-          if (!sym) return;
-          let symbols = [...new Set(sym.split(',').map(s => s.trim()).filter(Boolean))];
-
-          if (activeProject.type === 'DFA') {
-            const conflicts = new Set<string>();
-            const duplicates = new Set<string>();
-            for (const symbol of symbols) {
-              const existing = activeProject.transitions.find(
-                t => t.from === fromId && t.symbols.includes(symbol) && !(t.from === fromId && t.to === toId),
-              );
-              if (existing) {
-                if (existing.to === toId) duplicates.add(symbol);
-                else conflicts.add(symbol);
-              }
-            }
-
-            if (conflicts.size > 0) {
-              alert(
-                `DFA constraint: symbol(s) ${Array.from(conflicts).join(', ')} already have an outgoing transition from this state.`,
-              );
-            }
-
-            symbols = symbols.filter(symbol => !conflicts.has(symbol) && !duplicates.has(symbol));
-            if (symbols.length === 0) return;
-          }
-
-          // Auto-add new symbols to the alphabet (skip ε)
-          const newAlphaSymbols = symbols.filter(
-            s => s !== 'ε' && !activeProject.alphabet.includes(s),
-          );
-          if (newAlphaSymbols.length > 0) {
-            updateAlphabet([...activeProject.alphabet, ...newAlphaSymbols]);
-          }
-          // Replace all grouped transitions with a single one
-          const newTr: Transition = {
-            id: crypto.randomUUID(), from: fromId!, to: toId!, symbols,
-          };
-          updateTransitions([
-            ...activeProject.transitions.filter(t => !(t.from === fromId && t.to === toId)),
-            newTr,
-          ]);
+          setEditingEdgeId(ctxMenu.targetId);
+          setEditingEdgeValue(allSymbols);
+          setCtxMenu(null);
         },
       },
       { label: '---', action: () => {} },
@@ -539,7 +562,7 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         ),
       },
     ];
-  }, [ctxMenu, activeProject, updateTransitions, updateAlphabet]);
+  }, [ctxMenu, activeProject, updateTransitions]);
 
   return (
     <div ref={wrapperRef}
@@ -588,10 +611,11 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         <Background variant={BackgroundVariant.Dots} color="var(--border)" gap={24} size={1.5} />
         <Controls showInteractive={false} />
         <MiniMap
+          nodeBorderRadius={100}
           nodeColor={n => {
             const d = n.data as StateNodeData;
             if (activeStateIds.includes(n.id)) return '#facc15';
-            return d?.state?.isAccept ? '#7c3aed' : '#333';
+            return d?.state?.isAccept ? '#7c3aed' : '#9ca3af';
           }}
           style={{ background: 'var(--bg-surface)' }}
         />

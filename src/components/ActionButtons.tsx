@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { autoLayout } from '../engine/autoLayout';
 import { saveDocument } from '../lib/firestore';
+import { TransformIcon, CompressIcon, AutoLayoutIcon, LockIcon, PublicIcon, SaveIcon } from './Icons';
 
 const ActionButtons: React.FC = () => {
   const {
@@ -82,7 +83,7 @@ const ActionButtons: React.FC = () => {
           className="btn-secondary w-full text-sm text-left flex items-center gap-2"
           disabled={isDFA || !hasStates || isWorkerBusy}
         >
-          <span className="text-accent-light">⚡</span>
+          <TransformIcon className="text-accent-light" size={16} />
           Convert NFA → DFA
           {isWorkerBusy && <Spinner />}
         </button>
@@ -92,7 +93,7 @@ const ActionButtons: React.FC = () => {
           className="btn-secondary w-full text-sm text-left flex items-center gap-2"
           disabled={isNFA || !hasStates || isWorkerBusy}
         >
-          <span className="text-accent-light">🔬</span>
+          <CompressIcon className="text-accent-light" size={16} />
           Minimize DFA
           {isWorkerBusy && <Spinner />}
         </button>
@@ -102,7 +103,7 @@ const ActionButtons: React.FC = () => {
           className="btn-secondary w-full text-sm text-left flex items-center gap-2"
           disabled={!hasStates}
         >
-          <span className="text-accent-light">📐</span>
+          <AutoLayoutIcon className="text-accent-light" size={16} />
           Auto Layout
         </button>
 
@@ -113,8 +114,8 @@ const ActionButtons: React.FC = () => {
           className="btn-secondary w-full text-sm text-left flex items-center gap-2"
           disabled={!activeProject}
         >
-          <span className="text-accent-light">
-            {activeProject.isPrivate ? '🔒' : '🌍'}
+          <span className="text-accent-light flex items-center">
+            {activeProject.isPrivate ? <LockIcon size={16} /> : <PublicIcon size={16} />}
           </span>
           {activeProject.isPrivate ? 'Make Public' : 'Make Private'}
         </button>
@@ -124,7 +125,7 @@ const ActionButtons: React.FC = () => {
           className="btn-primary w-full text-sm flex items-center justify-center gap-2"
           disabled={!user || !!(activeProject.ownerId && activeProject.ownerId !== user.uid)}
         >
-          💾 Save to {activeProject.sourceCollection}
+          <SaveIcon size={16} /> Save to {activeProject.sourceCollection}
         </button>
 
         {!user && (

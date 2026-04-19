@@ -38,16 +38,12 @@ function StateNode({ data, selected }: NodeProps<StateNodeData>) {
         borderRadius: '50%',
         border: `2.5px solid ${isActive ? 'var(--yellow)' : selected ? 'var(--accent)' : 'var(--border-light)'}`,
         background: isActive
-          ? '#2b2510'
+          ? 'var(--yellow-light)'
           : selected
-          ? '#231a38'
+          ? 'var(--accent-light)'
           : 'var(--bg-elevated)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: isActive
-          ? '0 0 14px rgba(250,204,21,0.5)'
-          : selected
-          ? '0 0 14px var(--accent-glow)'
-          : 'none',
+        boxShadow: 'none',
         transition: 'all 0.2s ease',
         cursor: 'default',
       }}>

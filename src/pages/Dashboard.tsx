@@ -18,6 +18,7 @@ import { thompson }     from '../engine/thompson';
 import { nfaToDfa } from '../engine/nfaToDfa';
 import { minimize } from '../engine/minimize';
 import type { Automaton, FirestoreProject } from '../types';
+import { emitGlobalAlert } from '../components/GlobalBanner';
 import CanvasContextMenu from '../components/canvas/CanvasContextMenu';
 
 type ProjectCard = FirestoreProject & { id: string };
@@ -183,6 +184,8 @@ export default function Dashboard() {
   const [showModal,   setShowModal]   = useState(false);
   const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number; id: string } | null>(null);
   const [loading,     setLoading]     = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editingName,   setEditingName]   = useState('');
   const [eqResult,    setEqResult]    = useState<{
     equivalent: boolean;
     ids: string[];
@@ -228,7 +231,7 @@ export default function Dashboard() {
       await signInWithGithub();
     } catch (err: any) {
       console.error(err);
-      alert('OAuth Error: ' + (err?.message || 'Unknown error'));
+      emitGlobalAlert('OAuth Error: ' + (err?.message || 'Unknown error'));
     }
   };
 
@@ -289,12 +292,21 @@ export default function Dashboard() {
   };
 
   // Rename
-  const handleRename = async (id: string) => {
+  const handleRenameCommit = async (id: string) => {
+    const trimmed = editingName.trim();
+    setEditingCardId(null);
+    if (!trimmed) return;
     const current = projects.find(p => p.id === id)?.name ?? '';
-    const name    = prompt('Rename project:', current);
-    if (!name?.trim()) return;
-    await renameProject(id, name.trim());
-    setProjects(p => p.map(c => c.id === id ? { ...c, name: name.trim() } : c));
+    if (trimmed === current) return;
+    await renameProject(id, trimmed);
+    setProjects(p => p.map(c => c.id === id ? { ...c, name: trimmed } : c));
+  };
+
+  const startRename = (id: string) => {
+    const current = projects.find(p => p.id === id)?.name ?? '';
+    setEditingName(current);
+    setEditingCardId(id);
+    setCtxMenu(null);
   };
 
   // Equivalence check (NFA supported via internal NFA→DFA→minimize)
@@ -314,7 +326,7 @@ export default function Dashboard() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      alert(`Equivalence check failed: ${message}`);
+      emitGlobalAlert(`Equivalence check failed: ${message}`);
     }
   };
 
@@ -427,7 +439,25 @@ export default function Dashboard() {
                   </div>
                   <div className="project-card-body">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      <span className="project-card-name">{card.name}</span>
+                      {editingCardId === card.id ? (
+                        <input
+                          autoFocus
+                          className="input"
+                          style={{ padding: '2px 6px', fontSize: 13, minHeight: 0, height: 24, flex: 1, marginRight: 8 }}
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); handleRenameCommit(card.id); }
+                            if (e.key === 'Escape') setEditingCardId(null);
+                          }}
+                          onBlur={() => handleRenameCommit(card.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="project-card-name" onDoubleClick={(e) => { e.stopPropagation(); startRename(card.id); }}>
+                          {card.name}
+                        </span>
+                      )}
                       <span className={`badge ${card.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>{card.type}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -455,7 +485,7 @@ export default function Dashboard() {
           items={[
             { label: 'Open',   action: () => { const c = projects.find(p => p.id === ctxMenu.id); if (c) openProject(c); } },
             { label: 'Clone',  action: () => cloneCard(ctxMenu.id) },
-            { label: 'Rename', action: () => handleRename(ctxMenu.id) },
+            { label: 'Rename', action: () => startRename(ctxMenu.id) },
             { label: '---',    action: () => {} },
             { label: 'Delete', danger: true, action: () => handleDelete(ctxMenu.id) },
           ]}

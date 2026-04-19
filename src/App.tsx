@@ -6,6 +6,8 @@ import ViewOnly from './pages/ViewOnly';
 import { useStore } from './store/useStore';
 import { onAuthChange } from './lib/auth';
 
+import { GlobalBanner } from './components/GlobalBanner';
+
 const App: React.FC = () => {
   const setUser = useStore((s) => s.setUser);
 
@@ -18,6 +20,7 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <GlobalBanner />
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/canvas/:id" element={<CanvasPage />} />

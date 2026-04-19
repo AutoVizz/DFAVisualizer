@@ -8,6 +8,7 @@ import {
   upsertMinimizedDfa,
   updateProjectMinimizedId,
 } from '../../lib/firestoreHelpers';
+import { SaveIcon } from '../Icons';
 
 interface ActionsPanelProps {
   projectId?: string;
@@ -105,7 +106,7 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
           onClick={handleSave}
           title={!user ? 'Sign in to save' : ''}
         >
-          💾 Save Project
+          <SaveIcon size={16} /> Save Project
         </button>
 
         {!user && (

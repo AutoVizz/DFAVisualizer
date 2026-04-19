@@ -12,6 +12,11 @@ export interface TransitionEdgeData {
   transitionIds?: string[]; // original IDs when merged
   hasBidirectional?: boolean; // true when a reverse edge also exists
   isActive?: boolean;
+  isEditing?: boolean;
+  editValue?: string;
+  onEditChange?: (val: string) => void;
+  onEditCommit?: () => void;
+  onEditCancel?: () => void;
 }
 
 const SELF_LOOP_HEIGHT = 52;
@@ -55,21 +60,26 @@ function TransitionEdge({
     : isActive
     ? 'var(--yellow)'
     : isSelected
-    ? 'var(--blue)'
-    : 'var(--border-light)';
+    ? 'var(--accent)'
+    : 'var(--text-muted)';
   const edgeStyle = {
     ...(style ?? {}),
     stroke: edgeColor,
     strokeWidth: isActive || isSelected ? 3 : 2,
   } as React.CSSProperties;
-  const marker = typeof markerEnd === 'string'
-    ? markerEnd
-    : markerEnd
-    ? {
-      ...markerEnd,
-      color: edgeColor,
-    }
-    : markerEnd;
+  
+  const markerId = `arrowhead-${id}`;
+  const marker = `url(#${markerId})`;
+
+  const markerSvg = (
+    <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+      <defs>
+        <marker id={markerId} markerWidth="12" markerHeight="12" refX="10" refY="6" markerUnits="userSpaceOnUse" orient="auto">
+          <path d="M0,0 L0,12 L12,6 z" fill={edgeColor} />
+        </marker>
+      </defs>
+    </svg>
+  );
 
   if (isSelfLoop) {
     const cx = sourceX;
@@ -84,6 +94,7 @@ function TransitionEdge({
 
     return (
       <>
+        {markerSvg}
         <path
           id={id}
           d={d}
@@ -95,7 +106,7 @@ function TransitionEdge({
           <div
             style={{
               ...labelStyle,
-              border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border)'}`,
+              border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border-light)'}`,
               color: isActive || isSelected ? edgeColor : labelStyle.color,
               transform: `translate(-50%, -50%) translate(${midX}px,${midY}px)`,
             }}
@@ -162,18 +173,47 @@ function TransitionEdge({
 
   return (
     <>
+      {markerSvg}
       <BaseEdge id={id} path={edgePath} markerEnd={marker} style={edgeStyle} />
       <EdgeLabelRenderer>
         <div
           style={{
             ...labelStyle,
-            border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border)'}`,
+            border: `1px solid ${isActive || isSelected || data?.isEditing ? edgeColor : 'var(--border)'}`,
             color: isActive || isSelected ? edgeColor : labelStyle.color,
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            padding: data?.isEditing ? 0 : labelStyle.padding,
+            overflow: 'visible',
           }}
           className="nodrag nopan"
         >
-          {label}
+          {data?.isEditing ? (
+            <input
+              autoFocus
+              className="input"
+              style={{
+                padding: '2px 6px',
+                fontSize: 12,
+                minHeight: 0,
+                height: 24,
+                textAlign: 'center',
+                width: Math.max(48, ((data.editValue?.length ?? 1) + 1) * 8),
+                background: 'var(--bg-surface)',
+                border: 'none',
+                outline: 'none',
+                borderRadius: 4,
+              }}
+              value={data.editValue ?? ''}
+              onChange={e => data.onEditChange?.(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); data.onEditCommit?.(); }
+                if (e.key === 'Escape') data.onEditCancel?.();
+              }}
+              onBlur={() => data.onEditCommit?.()}
+            />
+          ) : (
+            label
+          )}
         </div>
       </EdgeLabelRenderer>
     </>

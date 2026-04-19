@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
 import { signInWithGithub, signOut } from '../lib/auth';
+import { emitGlobalAlert } from './GlobalBanner';
 
 const AuthButton: React.FC = () => {
   const { user, setUser } = useStore();
@@ -11,7 +12,7 @@ const AuthButton: React.FC = () => {
       setUser(u);
     } catch (err: any) {
       console.error('Sign-in failed:', err);
-      alert('OAuth Error: ' + (err?.message || 'Unknown error'));
+      emitGlobalAlert('OAuth Error: ' + (err?.message || 'Unknown error'));
     }
   };
 

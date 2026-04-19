@@ -2,36 +2,38 @@
 @config "../tailwind.config.js";
 /* ── Design Tokens ─────────────────────────────────────────── */
 :root {
-  --bg-base:      #0f0f0f;
-  --bg-surface:   #1a1a1a;
-  --bg-elevated:  #242424;
-  --bg-overlay:   #2e2e2e;
-  --border:       #333333;
-  --border-light: #444444;
+  --bg-base:      #f9fafb;
+  --bg-surface:   #ffffff;
+  --bg-elevated:  #f3f4f6;
+  --bg-overlay:   #e5e7eb;
+  --border:       #e5e7eb;
+  --border-light: #d1d5db;
 
   --accent:       #7c3aed;
   --accent-hover: #6d28d9;
   --accent-glow:  rgba(124, 58, 237, 0.35);
+  --accent-light: #f3e8ff;
+  --yellow-light: #fef9c3;
 
-  --text-primary:   #f0f0f0;
-  --text-secondary: #a0a0a0;
-  --text-muted:     #606060;
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
 
-  --green:  #22c55e;
-  --red:    #ef4444;
-  --yellow: #facc15;
-  --blue:   #3b82f6;
-  --orange: #f97316;
+  --green:  #16a34a;
+  --red:    #dc2626;
+  --yellow: #ca8a04;
+  --blue:   #2563eb;
+  --orange: #ea580c;
 
   --radius-sm: 4px;
   --radius:    8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow:    0 4px 16px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
-  --shadow-accent: 0 0 20px rgba(124,58,237,0.4);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow:    0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-accent: 0 0 20px rgba(124,58,237,0.3);
 }
 
 /* ── Global Reset ──────────────────────────────────────────── */

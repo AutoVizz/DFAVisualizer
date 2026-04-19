@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore }  from '../../store/useStore';
+import { emitGlobalAlert } from '../GlobalBanner';
 
 export default function StringSimulator() {
   const {
@@ -28,7 +29,7 @@ export default function StringSimulator() {
       runner();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      alert(message);
+      emitGlobalAlert(message);
     }
   };
 
