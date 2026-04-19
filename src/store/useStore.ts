@@ -45,6 +45,7 @@ interface StoreActions {
   updateAlphabet:      (alphabet: string[]) => void;
   setViewOnlyProject:  (project: Automaton | null) => void;
   patchActiveProject:  (patch: Partial<Automaton>) => void;
+  updateActiveProject: (updater: (project: Automaton) => Automaton) => void;
 
   // Simulation
   runSimulation:       (input: string) => void;
@@ -103,6 +104,11 @@ export const useStore = create<Store>((set, get) => ({
   patchActiveProject: (patch) =>
     set(s => s.activeProject
       ? { activeProject: { ...s.activeProject, ...patch } }
+      : {}),
+
+  updateActiveProject: (updater) =>
+    set(s => s.activeProject
+      ? { activeProject: updater(s.activeProject) }
       : {}),
 
   // ── Simulation actions ─────────────────────────────────────────────────────

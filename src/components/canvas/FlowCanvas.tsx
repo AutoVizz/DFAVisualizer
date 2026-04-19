@@ -113,7 +113,7 @@ interface FlowCanvasProps {
 export default function FlowCanvas({ readOnly = false, projectOverride = null }: FlowCanvasProps) {
   const {
     activeProject, simulationResult, simulationStep,
-    updateStates, updateTransitions, updateAlphabet,
+    updateStates, updateTransitions, updateAlphabet, updateActiveProject
   } = useStore();
   const project = projectOverride ?? activeProject;
 
@@ -250,17 +250,21 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
 
     if (!activeProject) return;
 
-    // Position updates (drag end)
-    const moved = changes.filter(
+    // Position updates
+    const positionChanges = changes.filter(
       (c): c is Extract<NodeChange, { type: 'position' }> =>
-        c.type === 'position' && !c.dragging && !!c.position,
+        c.type === 'position' && c.position !== undefined,
     );
-    if (moved.length > 0) {
-      const updatedStates = activeProject.states.map(s => {
-        const c = moved.find(m => m.id === s.id);
-        return c?.position ? { ...s, position: c.position } : s;
+    if (positionChanges.length > 0) {
+      updateActiveProject(p => {
+         const posMap = new Map();
+         positionChanges.forEach(c => posMap.set(c.id, c.position));
+         const newStates = p.states.map(s => {
+            const pos = posMap.get(s.id);
+            return pos ? { ...s, position: pos } : s;
+         });
+         return { ...p, states: newStates };
       });
-      updateStates(updatedStates);
     }
 
     // Deletion
@@ -414,7 +418,7 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     if (readOnly || !transitionFromSource) return;
     setPending({
-      connection: { source: transitionFromSource, target: node.id },
+      connection: { source: transitionFromSource, target: node.id, sourceHandle: null, targetHandle: null },
       x: lastMouse.current.x,
       y: lastMouse.current.y,
     });

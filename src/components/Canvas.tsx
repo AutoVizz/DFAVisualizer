@@ -8,11 +8,12 @@ import ReactFlow, {
   type Connection,
   type OnNodesChange,
   type OnEdgesChange,
-  applyNodeChanges,
   applyEdgeChanges,
   BackgroundVariant,
   type ReactFlowInstance,
   type XYPosition,
+  type NodePositionChange,
+  type NodeRemoveChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useStore } from '../store/useStore';
@@ -113,15 +114,10 @@ const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
     (changes) => {
       if (readOnly || !project) return;
 
-      // Apply position changes
-      const updatedNodes = applyNodeChanges(changes, nodes);
-
       // Check for deletions
-      const deletedIds = changes
-        .filter((c) => c.type === 'remove')
-        .map((c) => c.id);
-
-      if (deletedIds.length > 0) {
+      const removeChanges = changes.filter((c): c is NodeRemoveChange => c.type === 'remove');
+      if (removeChanges.length > 0) {
+        const deletedIds = removeChanges.map(c => c.id);
         updateActiveProject((p) => ({
           ...p,
           states: p.states.filter((s) => !deletedIds.includes(s.id)),
@@ -132,22 +128,29 @@ const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
         return;
       }
 
-      // Update positions
-      const positionChanges = changes.filter((c) => c.type === 'position' && c.position);
+      // Update positions directly from event changes
+      const positionChanges = changes.filter((c): c is NodePositionChange => c.type === 'position' && c.position !== undefined);
       if (positionChanges.length > 0) {
-        updateActiveProject((p) => ({
-          ...p,
-          states: p.states.map((s) => {
-            const updated = updatedNodes.find((n) => n.id === s.id);
-            if (updated && updated.position) {
-              return { ...s, position: updated.position };
+        updateActiveProject((p) => {
+          let hasChanges = false;
+          const posMap = new Map();
+          positionChanges.forEach(c => posMap.set(c.id, c.position));
+
+          const newStates = p.states.map((s) => {
+            const newPos = posMap.get(s.id);
+            if (newPos) {
+              hasChanges = true;
+              return { ...s, position: newPos };
             }
             return s;
-          }),
-        }));
+          });
+
+          if (!hasChanges) return p;
+          return { ...p, states: newStates };
+        });
       }
     },
-    [readOnly, project, nodes, updateActiveProject]
+    [readOnly, project, updateActiveProject]
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
