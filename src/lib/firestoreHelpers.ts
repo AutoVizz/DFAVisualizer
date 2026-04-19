@@ -16,7 +16,6 @@ import { autoLayout } from '../engine/autoLayout';
 
 function toMillis(value: unknown): number {
   if (typeof value === 'number') {
-    // Heuristic: values below 1e12 are likely seconds.
     return value < 1e12 ? value * 1000 : value;
   }
 
@@ -50,8 +49,6 @@ function isStackedLayout(automaton: Automaton): boolean {
   return uniquePositions.size <= 1;
 }
 
-// ── Projects ──────────────────────────────────────────────────────────────────
-
 export async function fetchUserProjects(ownerId: string): Promise<(FirestoreProject & { id: string })[]> {
   if (!db) return [];
   const q = query(collection(db, 'projects'), where('ownerId', '==', ownerId));
@@ -70,7 +67,6 @@ export async function fetchProject(projectId: string): Promise<(FirestoreProject
     const raw = snap.data() as FirestoreProject;
     return { id: snap.id, ...normalizeProject(raw) };
   } catch {
-    // Permission denied or doc doesn't exist
     return null;
   }
 }
@@ -93,24 +89,35 @@ export async function saveProject(projectId: string, automaton: Automaton, owner
       await updateDoc(ref, data);
       return;
     }
-  } catch {
-    // getDoc failed (permission denied = doc doesn't exist or not ours)
+  } catch (err) {
+    console.warn("[saveProject] getDoc/updateDoc failed:", err);
+    return;
   }
-  // Doc doesn't exist — create it
-  await setDoc(ref, { ...data, createdAt: serverTimestamp() });
+
+  try {
+    await setDoc(ref, { ...data, createdAt: serverTimestamp() });
+  } catch (err) {
+    console.warn("[saveProject] setDoc failed:", err);
+  }
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
   if (!db) return;
-  await deleteDoc(doc(db, 'projects', projectId));
+  try {
+    await deleteDoc(doc(db, 'projects', projectId));
+  } catch (err) {
+    console.warn("[deleteProject] failed:", err);
+  }
 }
 
 export async function renameProject(projectId: string, name: string): Promise<void> {
   if (!db) return;
-  await updateDoc(doc(db, 'projects', projectId), { name, updatedAt: serverTimestamp() });
+  try {
+    await updateDoc(doc(db, 'projects', projectId), { name, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn("[renameProject] failed:", err);
+  }
 }
-
-// ── Minimized DFAs ────────────────────────────────────────────────────────────
 
 export async function fetchMinimizedDfa(hash: string): Promise<Automaton | null> {
   if (!db) return null;
@@ -133,13 +140,21 @@ export async function upsertMinimizedDfa(hash: string, automaton: Automaton, can
     automatonJson:  JSON.stringify(automaton),
     canonicalString,
   };
-  await setDoc(doc(db, 'minimizedDfas', hash), data);
+  try {
+    await setDoc(doc(db, 'minimizedDfas', hash), data);
+  } catch (err) {
+    console.warn("[upsertMinimizedDfa] failed:", err);
+  }
 }
 
 export async function updateProjectMinimizedId(projectId: string, hash: string): Promise<void> {
   if (!db) return;
-  await updateDoc(doc(db, 'projects', projectId), {
-    minimizedDfaId: hash,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    await updateDoc(doc(db, 'projects', projectId), {
+      minimizedDfaId: hash,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn("[updateProjectMinimizedId] ignored permission failure because project missing or unowned.");
+  }
 }

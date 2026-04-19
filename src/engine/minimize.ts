@@ -1,15 +1,6 @@
 import type { Automaton, State, Transition } from '../types';
 import { autoLayout } from './autoLayout';
 
-/**
- * Hopcroft's Algorithm for DFA minimization.
- * Input must be a DFA — throws if NFA is passed.
- * Steps:
- *  1. Validate DFA
- *  2. Remove unreachable states
- *  3. Partition refinement (Hopcroft)
- *  4. Build minimized DFA
- */
 export function minimize(dfa: Automaton): Automaton {
   if (dfa.type !== 'DFA') {
     throw new Error('minimize() requires a DFA, not an NFA');
@@ -18,7 +9,6 @@ export function minimize(dfa: Automaton): Automaton {
     return { ...dfa, id: crypto.randomUUID(), minimizedDfaId: null };
   }
 
-  // ── Step 1: Remove unreachable states ───────────────────────────────────
   const startState = dfa.states.find(s => s.isStart);
   if (!startState) {
     throw new Error('DFA has no start state');
@@ -44,19 +34,16 @@ export function minimize(dfa: Automaton): Automaton {
 
   const alphabet = dfa.alphabet.filter(sym => sym !== 'ε');
 
-  // ── Build transition lookup: stateId + symbol → stateId ─────────────────
-  const delta = new Map<string, string>(); // `${stateId}:${sym}` → nextStateId
+  const delta = new Map<string, string>();
   for (const t of reachableTransitions) {
     for (const sym of t.symbols) {
       delta.set(`${t.from}:${sym}`, t.to);
     }
   }
 
-  // ── Step 2: Hopcroft partition refinement ────────────────────────────────
   const acceptIds    = new Set(reachableStates.filter(s => s.isAccept).map(s => s.id));
   const nonAcceptIds = new Set(reachableStates.filter(s => !s.isAccept).map(s => s.id));
 
-  // Partitions: array of sets
   let partitions: Set<string>[] = [];
   if (acceptIds.size    > 0) partitions.push(acceptIds);
   if (nonAcceptIds.size > 0) partitions.push(nonAcceptIds);
@@ -74,7 +61,6 @@ export function minimize(dfa: Automaton): Automaton {
     const splitter = worklist.pop()!;
 
     for (const sym of alphabet) {
-      // X = set of states that transition into splitter via sym
       const X = new Set<string>();
       for (const sid of splitter) {
         for (const t of reachableTransitions) {
@@ -102,20 +88,16 @@ export function minimize(dfa: Automaton): Automaton {
     }
   }
 
-  // ── Step 3: Build minimized DFA ──────────────────────────────────────────
   const minStates: State[]      = [];
   const minTransitions: Transition[] = [];
 
-  // Map partition index → new DFA state id
   const partitionToId = new Map<number, string>();
   let labelIndex = 0;
 
-  // Determine which partition the start state belongs to
   const startPartIdx = partitionOf(startState.id);
 
   for (let i = 0; i < partitions.length; i++) {
     const partition = partitions[i];
-    // Pick a representative state
     const repId  = Array.from(partition)[0];
     const repSt  = reachableStates.find(s => s.id === repId)!;
 
@@ -130,7 +112,6 @@ export function minimize(dfa: Automaton): Automaton {
     minStates.push({ id, label, isStart, isAccept, position: { x: 0, y: 0 } });
   }
 
-  // Re-label q0 explicitly for start, renumber the rest
   let counter = 0;
   for (const st of minStates) {
     if (st.isStart) {
@@ -141,7 +122,6 @@ export function minimize(dfa: Automaton): Automaton {
     }
   }
 
-  // Build transitions
   for (let i = 0; i < partitions.length; i++) {
     const partition = partitions[i];
     const repId     = Array.from(partition)[0];

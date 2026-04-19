@@ -27,7 +27,6 @@ export default function CanvasContextMenu({ x, y, items, onClose }: ContextMenuP
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  // Clamp to viewport
   const menuX = Math.min(x, window.innerWidth  - 180);
   const menuY = Math.min(y, window.innerHeight - items.length * 36 - 16);
 

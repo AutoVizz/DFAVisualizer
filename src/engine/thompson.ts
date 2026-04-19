@@ -5,15 +5,11 @@ import { epsilonClosure }    from './epsilonClosure';
 const MAX_REGEX_LENGTH = 100;
 const EPSILON = 'ε';
 
-// ── Token types ──────────────────────────────────────────────────────────────
-type TokenType = 'CHAR' | 'UNION' | 'STAR' | 'CONCAT' | 'LPAREN' | 'RPAREN';
-
 interface Token {
   type: TokenType;
-  value?: string; // only for CHAR
+  value?: string;
 }
 
-// ── Lexer ────────────────────────────────────────────────────────────────────
 function lex(regex: string): Token[] {
   if (regex.length > MAX_REGEX_LENGTH) {
     throw new Error('INVALID_REGEX: regex exceeds 100 characters');
@@ -29,7 +25,6 @@ function lex(regex: string): Token[] {
       depth++;
     } else if (ch === ')') {
       if (depth === 0) throw new Error('INVALID_REGEX: unbalanced parentheses');
-      // Check for empty group
       if (tokens.length > 0 && tokens[tokens.length - 1]!.type === 'LPAREN') {
         throw new Error('INVALID_REGEX: empty group ()');
       }
@@ -48,7 +43,6 @@ function lex(regex: string): Token[] {
       }
       tokens.push({ type: 'STAR' });
     } else {
-      // Treat '#' as epsilon, same as 'ε'
       const value = ch === '#' ? EPSILON : ch;
       tokens.push({ type: 'CHAR', value });
     }
@@ -64,7 +58,6 @@ function lex(regex: string): Token[] {
   return tokens;
 }
 
-// ── Insert explicit concatenation operator ────────────────────────────────────
 function insertConcat(tokens: Token[]): Token[] {
   const result: Token[] = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -82,8 +75,6 @@ function insertConcat(tokens: Token[]): Token[] {
   return result;
 }
 
-// ── Shunting-yard ─────────────────────────────────────────────────────────────
-// Precedence: * > · (CONCAT) > |
 const PRECEDENCE: Record<string, number> = {
   UNION:  1,
   CONCAT: 2,
@@ -103,8 +94,6 @@ function shuntingYard(tokens: Token[]): Token[] {
         if (top.type === 'LPAREN') break;
         const topPrec  = PRECEDENCE[top.type]  ?? 0;
         const currPrec = PRECEDENCE[token.type] ?? 0;
-        // Left-associative: pop if top has >= precedence
-        // * is right-associative technically but for Kleene it doesn't matter
         if (topPrec >= currPrec) {
           output.push(opStack.pop()!);
         } else {
@@ -118,7 +107,7 @@ function shuntingYard(tokens: Token[]): Token[] {
       while (opStack.length > 0 && opStack[opStack.length - 1]!.type !== 'LPAREN') {
         output.push(opStack.pop()!);
       }
-      opStack.pop(); // discard LPAREN
+      opStack.pop();
     }
   }
 
@@ -129,7 +118,6 @@ function shuntingYard(tokens: Token[]): Token[] {
   return output;
 }
 
-// ── NFA Fragment ──────────────────────────────────────────────────────────────
 interface NfaState {
   id: string;
   transitions: { symbol: string; to: string }[];
@@ -157,7 +145,6 @@ function mergeStates(...maps: Map<string, NfaState>[]): Map<string, NfaState> {
   return merged;
 }
 
-// ── Thompson construction ─────────────────────────────────────────────────────
 function buildNfa(rpn: Token[]): NfaFrag {
   const stack: NfaFrag[] = [];
 
@@ -184,7 +171,6 @@ function buildNfa(rpn: Token[]): NfaFrag {
       const frag2 = stack.pop()!;
       const frag1 = stack.pop()!;
       const states = mergeStates(frag1.states, frag2.states);
-      // Connect frag1.accept → frag2.start via ε
       addTransition(states, frag1.accept, EPSILON, frag2.start);
       stack.push({ start: frag1.start, accept: frag2.accept, states });
 
@@ -208,9 +194,7 @@ function buildNfa(rpn: Token[]): NfaFrag {
   return stack[0]!;
 }
 
-// ── Post-process: BFS assign UUIDs + labels ───────────────────────────────────
 function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
-  // BFS from start
   const order: string[] = [];
   const visited = new Set<string>();
   const queue   = [frag.start];
@@ -226,7 +210,6 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
     }
   }
 
-  // Old ID → new
   const idMap = new Map<string, string>();
   const labelMap = new Map<string, string>();
   order.forEach((oldId, idx) => {
@@ -246,7 +229,6 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
   const transitions: Transition[] = [];
   for (const oldId of order) {
     const st = frag.states.get(oldId)!;
-    // Group by destination for multi-symbol merging
     const byDest = new Map<string, string[]>();
     for (const { symbol, to } of st.transitions) {
       if (!idMap.has(to)) continue;
@@ -275,17 +257,12 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
     minimizedDfaId: null,
   };
 
-  // Apply dagre layout to raw fragment
   return autoLayout(automaton);
 }
 
-// ── ε-elimination ─────────────────────────────────────────────────────────────
-// Converts an ε-NFA to an equivalent NFA without ε-transitions.
-// The language is preserved; visually much cleaner.
 function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
   const alphabet = nfa.alphabet.filter(s => s !== 'ε');
 
-  // Update accept flags: state is accept if its ε-closure contains any accept state
   const newStates: State[] = nfa.states.map(state => {
     const closure  = epsilonClosure(nfa, new Set([state.id]));
     const isAccept = Array.from(closure).some(
@@ -294,13 +271,11 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
     return { ...state, isAccept };
   });
 
-  // Build merged transition map: `fromId|toId` → Set<symbol>
   const transMap = new Map<string, Set<string>>();
 
   for (const state of nfa.states) {
     const fromClosure = epsilonClosure(nfa, new Set([state.id]));
     for (const sym of alphabet) {
-      // move(fromClosure, sym) then ε-closure
       const reached = new Set<string>();
       for (const csId of fromClosure) {
         for (const t of nfa.transitions) {
@@ -326,7 +301,6 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
     rawTransitions.push({ id: crypto.randomUUID(), from, to, symbols: Array.from(symbols) });
   }
 
-  // Remove unreachable states via BFS from start
   const startSt = newStates.find(s => s.isStart);
   if (!startSt) return { ...nfa, states: newStates, alphabet, transitions: rawTransitions };
 
@@ -339,9 +313,7 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
     rawTransitions.filter(t => t.from === curr).forEach(t => queue.push(t.to));
   }
 
-  // Relabel reachable states q0, q1, q2...
   const reachableStates = newStates.filter(s => reachable.has(s.id));
-  // Start state gets q0
   let counter = 1;
   const relabeled = reachableStates.map(s => ({
     ...s,
@@ -361,7 +333,6 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
   });
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
 export function thompson(regex: string, name = 'Regex NFA'): Automaton {
   if (!regex.trim()) throw new Error('INVALID_REGEX: empty regex');
 
@@ -370,6 +341,5 @@ export function thompson(regex: string, name = 'Regex NFA'): Automaton {
   const rpn      = shuntingYard(withConc);
   const frag     = buildNfa(rpn);
   const raw      = fragmentToAutomaton(frag, name);
-  // Return clean NFA: eliminate ε-transitions for visual clarity
   return eliminateEpsilonTransitions(raw);
 }

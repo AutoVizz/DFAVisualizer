@@ -4,9 +4,6 @@ import { autoLayout } from './autoLayout';
 
 const MAX_STATES = 100;
 
-/**
- * Move from a set of NFA states on a single non-ε symbol.
- */
 function move(automaton: Automaton, states: Set<string>, symbol: string): Set<string> {
   const result = new Set<string>();
   for (const stateId of states) {
@@ -23,10 +20,6 @@ function setKey(s: Set<string>): string {
   return Array.from(s).sort().join(',');
 }
 
-/**
- * Subset construction: NFA → DFA.
- * Throws Error('MAX_STATE_LIMIT_EXCEEDED') if result would exceed 100 states.
- */
 export function nfaToDfa(nfa: Automaton): Automaton {
   const startState = nfa.states.find(s => s.isStart);
   if (!startState) {
@@ -35,7 +28,6 @@ export function nfaToDfa(nfa: Automaton): Automaton {
 
   const alphabet = [...new Set(nfa.alphabet.filter(sym => sym !== 'ε'))];
 
-  // Map from DFA state key → DFA state id
   const dfaStateMap = new Map<string, string>();
   const dfaStates: State[]      = [];
   const dfaTransitions: Transition[] = [];
@@ -80,8 +72,6 @@ export function nfaToDfa(nfa: Automaton): Automaton {
       const moved  = move(nfa, currentSubset, sym);
       const closed = epsilonClosure(nfa, moved);
 
-      // Keep empty-set moves as an explicit dead state (subset = ∅)
-      // so the resulting automaton is a complete DFA.
       const toKey = setKey(closed);
       getOrCreate(toKey, closed);
       const toId = dfaStateMap.get(toKey)!;

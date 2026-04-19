@@ -13,7 +13,6 @@ export default function Sidebar({ projectId }: SidebarProps) {
 
   return (
     <aside className="sidebar">
-      {/* Project name + type */}
       {activeProject && (
         <div className="sidebar-section" style={{ borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

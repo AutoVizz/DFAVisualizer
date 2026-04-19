@@ -19,10 +19,6 @@ function validateDfaCompleteness(automaton: Automaton): void {
   }
 }
 
-/**
- * Move function: given a set of states and a non-ε symbol,
- * return the set of states reachable via that symbol.
- */
 function move(automaton: Automaton, states: Set<string>, symbol: string): Set<string> {
   const result = new Set<string>();
   for (const stateId of states) {
@@ -35,27 +31,14 @@ function move(automaton: Automaton, states: Set<string>, symbol: string): Set<st
   return result;
 }
 
-/**
- * Simulate an automaton on an input string ω.
- *
- * - DFA: deterministic step through δ
- * - NFA: track set of current states + ε-closure after every symbol
- * - ε represented as the string "ε"
- *
- * Returns: { accepted, stateHistory }
- * stateHistory[0] = initial state set (before any symbol processed)
- * stateHistory[i] = state set after processing the i-th symbol (1-indexed)
- */
 export function simulate(automaton: Automaton, input: string): SimulationResult {
   validateDfaCompleteness(automaton);
 
-  // Find the start state
   const startState = automaton.states.find(s => s.isStart);
   if (!startState) {
     return { accepted: false, stateHistory: [[]], inputSymbols: [] };
   }
 
-  // Split input into symbols — treat each character as a symbol
   const symbols = input === '' ? [] : Array.from(input);
 
   if (automaton.type === 'DFA') {
@@ -86,7 +69,6 @@ export function simulate(automaton: Automaton, input: string): SimulationResult 
       inputSymbols: symbols,
     };
   } else {
-    // NFA simulation via subset construction on-the-fly
     let current = epsilonClosure(automaton, new Set([startState.id]));
     const history: string[][] = [Array.from(current)];
 

@@ -1,17 +1,14 @@
 import React from 'react';
 
-// ─── Pure DOM banner — no React state, no subscription timing issues ────────
 const BANNER_ID = 'dfa-global-banner';
 let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function emitGlobalAlert(message: string | null) {
-  // Remove any existing banner
   const existing = document.getElementById(BANNER_ID);
   if (existing) existing.remove();
   if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
   if (!message) return;
 
-  // Build the banner element directly in the DOM
   const banner = document.createElement('div');
   banner.id = BANNER_ID;
   Object.assign(banner.style, {
@@ -58,6 +55,3 @@ export function emitGlobalAlert(message: string | null) {
   document.getElementById(`${BANNER_ID}-close`)?.addEventListener('click', close);
   dismissTimer = setTimeout(close, 8000);
 }
-
-// ── React wrapper — just a no-op mount point kept for App.tsx compatibility ──
-export const GlobalBanner: React.FC = () => null;

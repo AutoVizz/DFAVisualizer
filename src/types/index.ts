@@ -1,8 +1,6 @@
-// ── Core Domain Types ───────────────────────────────────────────────────────
-
 export interface State {
   id: string;
-  label: string;       // e.g. "q0"
+  label: string;
   isStart: boolean;
   isAccept: boolean;
   position: { x: number; y: number };
@@ -10,9 +8,9 @@ export interface State {
 
 export interface Transition {
   id: string;
-  from: string;        // state id
-  to: string;          // state id
-  symbols: string[];   // e.g. ["a", "b"] or ["ε"]
+  from: string;
+  to: string;
+  symbols: string[];
 }
 
 export interface Automaton {
@@ -25,18 +23,11 @@ export interface Automaton {
   minimizedDfaId: string | null;
 }
 
-// ── Simulation ──────────────────────────────────────────────────────────────
-
 export interface SimulationResult {
   accepted: boolean;
-  /** stateHistory[i] = set of active state IDs after processing symbol i.
-   *  stateHistory[0] = initial states (before any input). */
   stateHistory: string[][];
-  /** Input symbols consumed by the simulation. */
   inputSymbols: string[];
 }
-
-// ── Worker Messages ─────────────────────────────────────────────────────────
 
 export type WorkerInMessage =
   | { type: 'NFA_TO_DFA'; payload: Automaton }
@@ -54,16 +45,11 @@ export type WorkerOutMessage =
   | { type: 'RESULT'; payload: Automaton }
   | { type: 'ERROR';  code: WorkerErrorCode; message?: string };
 
-// ── Equivalence ─────────────────────────────────────────────────────────────
-
 export interface EquivalenceResult {
   equivalent: boolean;
   hash1: string;
   hash2: string;
 }
-
-// ── Firestore Documents ─────────────────────────────────────────────────────
-
 
 export interface FirestoreProject {
   ownerId: string;

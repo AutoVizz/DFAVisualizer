@@ -3,7 +3,7 @@ import { useStore }    from '../store/useStore';
 import { cloneProject } from '../lib/utils';
 import { saveProject }  from '../lib/firestoreHelpers';
 import FlowCanvas       from '../components/canvas/FlowCanvas';
-import { VisibilityIcon } from '../components/Icons';
+import { VisibilityIcon } from '../components/ui/Icons';
 
 export default function ViewOnly() {
   const navigate = useNavigate();

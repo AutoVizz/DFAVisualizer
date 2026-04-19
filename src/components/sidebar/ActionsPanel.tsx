@@ -8,7 +8,7 @@ import {
   upsertMinimizedDfa,
   updateProjectMinimizedId,
 } from '../../lib/firestoreHelpers';
-import { SaveIcon } from '../Icons';
+import { SaveIcon } from '../ui/Icons';
 
 interface ActionsPanelProps {
   projectId?: string;

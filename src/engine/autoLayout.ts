@@ -9,10 +9,6 @@ function keyFor(x: number, y: number): string {
   return `${Math.round(x)},${Math.round(y)}`;
 }
 
-/**
- * Apply dagre auto-layout to an automaton.
- * Assigns (x, y) positions to every state node.
- */
 export function autoLayout(automaton: Automaton): Automaton {
   const g = new dagre.graphlib.Graph();
 
@@ -46,8 +42,6 @@ export function autoLayout(automaton: Automaton): Automaton {
     };
   });
 
-  // Enforce unique coordinates in case the layout engine yields duplicates
-  // (for example, certain disconnected/degenerate graphs).
   const used = new Set<string>();
   const uniquedStates = updatedStates.map(state => {
     let x = state.position.x;

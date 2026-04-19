@@ -18,12 +18,11 @@ import CanvasContextMenu from './CanvasContextMenu';
 import EdgePopover       from './EdgePopover';
 import type { Automaton, State, Transition } from '../../types';
 import { nextStateLabel } from '../../lib/utils';
-import { emitGlobalAlert } from '../GlobalBanner';
+import { emitGlobalAlert } from '../ui/GlobalBanner';
 
 const NODE_TYPES = { stateNode: StateNode };
 const EDGE_TYPES = { transitionEdge: TransitionEdge };
 
-// ── Conversion helpers ────────────────────────────────────────────────────────
 function toRFNodes(states: State[], activeIds: string[], readOnly: boolean): Node<StateNodeData>[] {
   return states.map(s => ({
     id:       s.id,
@@ -35,10 +34,6 @@ function toRFNodes(states: State[], activeIds: string[], readOnly: boolean): Nod
   }));
 }
 
-// Group transitions by (from, to) and merge their symbols into one RF edge.
-// Stores all original transition IDs in data.transitionIds for deletion.
-// Also detects bidirectional edges (A→B and B→A) and marks them so we can
-// render them with extra curvature so they don't overlap.
 function toRFEdges(
   transitions: Transition[],
   activeTransitionIds: Set<string> = new Set(),
@@ -50,7 +45,6 @@ function toRFEdges(
     groups.get(key)!.push(t);
   }
 
-  // Build a set of all direction keys to detect bidirectional pairs
   const directionKeys = new Set(groups.keys());
 
   const edges: Edge<TransitionEdgeData>[] = [];
@@ -64,7 +58,6 @@ function toRFEdges(
       symbols: allSymbols,
     };
 
-    // Check if reverse direction exists (skip self-loops)
     const reverseKey = `${first.to}\x00${first.from}`;
     const hasBidirectional = first.from !== first.to && directionKeys.has(reverseKey);
     const isActive = group.some(t => activeTransitionIds.has(t.id));
@@ -85,20 +78,17 @@ function toRFEdges(
   return edges;
 }
 
-// ── Context menu state ────────────────────────────────────────────────────────────
 interface CtxMenu {
   x: number; y: number;
   targetId: string;
   targetType: 'node' | 'edge' | 'pane';
 }
 
-// ── Pending connection state ──────────────────────────────────────────────────
 interface PendingConn {
   connection: Connection;
   x: number; y: number;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 interface FlowCanvasProps {
   readOnly?: boolean;
   projectOverride?: Automaton | null;
@@ -125,7 +115,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   const wrapperRef = useRef<HTMLDivElement>(null);
   const lastMouse  = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Active simulation state IDs at current step
   const activeStateIds = useMemo(() => {
     if (!simulationResult || !project) return [] as string[];
     return simulationResult.stateHistory[simulationStep] ?? [];
@@ -149,7 +138,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     );
   }, [project, simulationResult, simulationStep]);
 
-  // Sync project → RF nodes when the project id changes
   useEffect(() => {
     if (!project) { setRfNodes([]); setRfEdges([]); return; }
     setRfNodes(toRFNodes(project.states, activeStateIds, readOnly));
@@ -157,18 +145,16 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, readOnly]);
 
-  // Rebuild RF edges whenever transitions change (handles merging + bidirectional detection)
   useEffect(() => {
     if (!project) return;
     setRfEdges(toRFEdges(project.transitions, activeTransitionIds));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.transitions, activeTransitionIds]);
 
-  // Inject inline-edit data into the matching edge whenever editing state changes
   useEffect(() => {
     setRfEdges(edges => edges.map(e => {
       const isEditing = e.id === editingEdgeId;
-      if (!isEditing && !e.data?.isEditing) return e; // skip unchanged
+      if (!isEditing && !e.data?.isEditing) return e;
       return {
         ...e,
         data: {
@@ -190,9 +176,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingEdgeId, editingEdgeValue]);
 
-  // Hotkeys:
-  // - T: start add-transition mode from currently selected node (exactly one)
-  // - Escape: cancel add-transition mode
   useEffect(() => {
     if (readOnly) return;
 
@@ -225,7 +208,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [readOnly, rfNodes]);
 
-  // Sync active simulation highlights without full rebuild
   useEffect(() => {
     setRfNodes(nodes =>
       nodes.map(n => ({
@@ -235,8 +217,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     );
   }, [activeStateIds, setRfNodes]);
 
-  // Reconcile RF nodes from store state changes by id (position + metadata).
-  // This keeps existing node order stable and avoids position jumps when adding nodes.
   useEffect(() => {
     if (!project) return;
     setRfNodes(nodes => {
@@ -265,14 +245,12 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.states, activeStateIds, readOnly]);
 
-  // ── Node changes ────────────────────────────────────────────────────────────
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     if (readOnly) return;
     onRFNodesChange(changes);
 
     if (!activeProject) return;
 
-    // Position updates
     const positionChanges = changes.filter(
       (c): c is Extract<NodeChange, { type: 'position' }> =>
         c.type === 'position' && c.position !== undefined,
@@ -289,7 +267,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
       });
     }
 
-    // Deletion
     const removed = changes.filter(c => c.type === 'remove').map(c => c.id);
     if (removed.length > 0) {
       updateStates(activeProject.states.filter(s => !removed.includes(s.id)));
@@ -299,24 +276,19 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     }
   }, [readOnly, activeProject, onRFNodesChange, updateStates, updateTransitions]);
 
-  // ── Edge changes ────────────────────────────────────────────────────────────
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     if (readOnly) return;
     const removed = changes.filter(c => c.type === 'remove').map(c => c.id);
     if (removed.length > 0 && activeProject) {
-      // removed IDs may be merged `from__to` IDs — delete all matching transitions
-      // The transition useEffect will rebuild RF edges
       updateTransitions(activeProject.transitions.filter(t => {
         const mergedId = `${t.from}__${t.to}`;
         return !removed.includes(t.id) && !removed.includes(mergedId);
       }));
     } else {
-      // Non-removal changes (e.g. selection) — pass through to RF
       onRFEdgesChange(changes);
     }
   }, [readOnly, activeProject, onRFEdgesChange, updateTransitions]);
 
-  // ── Connect (drag → release on node) ────────────────────────────────────────
   const onConnectComplete = useCallback((conn: Connection) => {
     if (readOnly || !conn.source || !conn.target) return;
     setPending({ connection: conn, x: lastMouse.current.x, y: lastMouse.current.y });
@@ -356,7 +328,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
       }
     }
 
-    // Auto-add new symbols to the alphabet (skip ε)
     const newAlphaSymbols = nextSymbols.filter(
       s => s !== 'ε' && !activeProject.alphabet.includes(s),
     );
@@ -367,13 +338,10 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     const newTransition: Transition = {
       id: crypto.randomUUID(), from: source, to: target, symbols: nextSymbols,
     };
-    // Just update the store — the transitions useEffect will rebuild RF edges
-    // with proper merging and bidirectional detection
     updateTransitions([...activeProject.transitions, newTransition]);
     setPending(null);
   }, [pending, activeProject, updateTransitions, updateAlphabet]);
 
-  // ── Add state helper (shared by double-click and context menu) ─────────────
   const addStateAt = useCallback((clientX: number, clientY: number) => {
     if (!activeProject) return;
     const bounds = wrapperRef.current?.getBoundingClientRect();
@@ -387,18 +355,13 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     const isFirst = activeProject.states.length === 0;
     const newState: State = { id, label, isStart: isFirst, isAccept: false, position };
 
-    // Preserve the current on-canvas positions for existing nodes to avoid
-    // snapping them to stale store coordinates when a new node is added.
     const liveNodePos = new Map(rfNodes.map(n => [n.id, n.position]));
     const syncedStates = activeProject.states.map(s => {
       const livePos = liveNodePos.get(s.id);
       return livePos ? { ...s, position: livePos } : s;
     });
 
-    // Update store (append)
     updateStates([...syncedStates, newState]);
-
-    // RF nodes are reconciled from store state in the states sync effect.
   }, [activeProject, rfNodes, updateStates]);
 
   const updateStatesPreservingLivePositions = useCallback(
@@ -414,7 +377,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     [activeProject, rfNodes, updateStates],
   );
 
-  // ── Double-click on pane → add state ─────────────────────────────────────────
   const handleWrapperDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !activeProject) return;
     const target = e.target as HTMLElement;
@@ -429,7 +391,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     addStateAt(e.clientX, e.clientY);
   }, [readOnly, activeProject, addStateAt]);
 
-  // ── Double-click on node → toggle accept ────────────────────────────────────
   const handleNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     if (readOnly || !activeProject) return;
     updateStatesPreservingLivePositions(states =>
@@ -447,7 +408,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     setTransitionFromSource(null);
   }, [readOnly, transitionFromSource]);
 
-  // ── Context menus ────────────────────────────────────────────────────────────
   const handleNodeContextMenu = useCallback((e: React.MouseEvent, node: Node) => {
     if (readOnly) return;
     e.preventDefault();
@@ -497,7 +457,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     ];
   }, [ctxMenu, activeProject, updateStatesPreservingLivePositions, updateStates, updateTransitions, transitionFromSource]);
 
-  // ── Inline edge symbol editing ──────────────────────────────────────────────
   const commitEdgeEdit = useCallback((edgeKey: string, rawValue: string) => {
     setEditingEdgeId(null);
     if (!activeProject) return;
@@ -581,8 +540,7 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         onConnect={onConnectComplete}
         onInit={inst => {
           rfInstance.current = inst;
-          // Fit view once on initial load
-          setTimeout(() => inst.fitView({ padding: 0.3 }), 50);
+          requestAnimationFrame(() => inst.fitView({ padding: 0.3 }));
         }}
         onPaneClick={() => {
           setCtxMenu(null);
@@ -621,7 +579,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         />
       </ReactFlow>
 
-      {/* Transition pick mode hint */}
       {transitionFromSource && (
         <div
           style={{
@@ -643,7 +600,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         </div>
       )}
 
-      {/* Context menu */}
       {ctxMenu && (
         <CanvasContextMenu
           x={ctxMenu.x} y={ctxMenu.y}
@@ -656,7 +612,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         />
       )}
 
-      {/* Edge symbol popover */}
       {pending && (
         <EdgePopover
           x={pending.x} y={pending.y}
@@ -665,7 +620,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         />
       )}
 
-      {/* Rename input */}
       {renameTarget && (
         <div className="modal-overlay" onClick={() => setRenameTarget(null)}>
           <div className="modal" style={{ width: 320 }} onClick={e => e.stopPropagation()}>

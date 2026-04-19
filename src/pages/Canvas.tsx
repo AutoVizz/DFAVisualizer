@@ -20,17 +20,13 @@ export default function Canvas() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
 
-  // Load project on mount
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
 
     const load = async () => {
-      // Guard autosave until we've loaded the intended project for this route.
       setIsProjectReadyForSave(false);
 
-      // When signed in, fetch from backend; do not fall back to empty for unknown ids,
-      // as that can overwrite existing projects if a transient read issue occurs.
       if (user) {
         const card = await fetchProject(id);
         if (cancelled) return;
@@ -42,7 +38,6 @@ export default function Canvas() {
           return;
         }
 
-        // Only create a blank project for explicit new routes.
         if (id.startsWith('new-')) {
           setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
           setIsProjectReadyForSave(true);
@@ -50,7 +45,6 @@ export default function Canvas() {
         return;
       }
 
-      // Signed out: only local blank for explicit new routes.
       if (id.startsWith('new-')) {
         setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
       }
@@ -63,7 +57,6 @@ export default function Canvas() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
-  // Auto-save debounced 1s
   useEffect(() => {
     if (!activeProject || !user || !id || !isProjectReadyForSave) return;
     if (activeProject.id !== id) return;
@@ -101,7 +94,6 @@ export default function Canvas() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Header bar */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: 48, zIndex: 10,
@@ -147,7 +139,6 @@ export default function Canvas() {
         )}
       </div>
 
-      {/* Canvas + sidebar */}
       <div style={{ display: 'flex', flex: 1, marginTop: 48, overflow: 'hidden' }}>
         <FlowCanvas readOnly={false} />
         <Sidebar projectId={id} />

@@ -18,12 +18,11 @@ import { thompson }     from '../engine/thompson';
 import { nfaToDfa } from '../engine/nfaToDfa';
 import { minimize } from '../engine/minimize';
 import type { Automaton, FirestoreProject } from '../types';
-import { emitGlobalAlert } from '../components/GlobalBanner';
+import { emitGlobalAlert } from '../components/ui/GlobalBanner';
 import CanvasContextMenu from '../components/canvas/CanvasContextMenu';
 
 type ProjectCard = FirestoreProject & { id: string };
 
-// ── Tiny SVG thumbnail ───────────────────────────────────────────────────────
 function AutomatonThumbnail({ automaton }: { automaton: Automaton }) {
   const W = 280, H = 120;
   const states = automaton.states.slice(0, 12);
@@ -34,7 +33,6 @@ function AutomatonThumbnail({ automaton }: { automaton: Automaton }) {
       </div>
     );
   }
-  // Normalize positions to thumbnail
   const xs = states.map(s => s.position.x);
   const ys = states.map(s => s.position.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -77,7 +75,6 @@ function AutomatonThumbnail({ automaton }: { automaton: Automaton }) {
   );
 }
 
-// ── New Project Modal ────────────────────────────────────────────────────────
 interface NewProjectModalProps {
   onClose:  () => void;
   onCreate: (automaton: Automaton) => Promise<void>;
@@ -102,7 +99,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
   const handleRegex = () => {
     if (!regex.trim()) { setRegexError('Enter a regex'); return; }
     try {
-      thompson(regex); // validate locally first
+      thompson(regex);
       setRegexError('');
       const projectName = regexName.trim() || `Minimized DFA for /${regex}/`;
       const extraAlpha  = regexAlpha
@@ -119,8 +116,6 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <p className="modal-title">New Project</p>
-
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
           {(['nfa', 'dfa', 'regex'] as const).map(t => (
             <button key={t} className={`btn btn-sm ${tab === t ? 'btn-primary' : 'btn-ghost'}`}
@@ -174,7 +169,6 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
   );
 }
 
-// ── Dashboard page ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, setActiveProject, dispatchToWorker, workerStatus } = useStore();
@@ -243,7 +237,6 @@ export default function Dashboard() {
     }
   };
 
-  // Toggle card selection
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelected(prev => {
@@ -253,14 +246,12 @@ export default function Dashboard() {
     });
   };
 
-  // Open project
   const openProject = (card: ProjectCard) => {
     const automaton = JSON.parse(card.automatonJson) as Automaton;
     setActiveProject(automaton);
     navigate(`/canvas/${card.id}`);
   };
 
-  // Create new project
   const createProject = async (automaton: Automaton) => {
     setActiveProject(automaton);
     if (user) {
@@ -270,7 +261,6 @@ export default function Dashboard() {
     navigate(`/canvas/${automaton.id}`);
   };
 
-  // Regex → minimized DFA via worker
   const buildRegexNfa = (regex: string, name: string, extraAlphabet: string[]) => {
     dispatchToWorker(
       { type: 'THOMPSON_TO_MIN_DFA', payload: { regex, extraAlphabet } },
@@ -285,13 +275,11 @@ export default function Dashboard() {
     );
   };
 
-  // Delete
   const handleDelete = async (id: string) => {
     await deleteProject(id);
     setProjects(p => p.filter(c => c.id !== id));
   };
 
-  // Rename
   const handleRenameCommit = async (id: string) => {
     const trimmed = editingName.trim();
     setEditingCardId(null);
@@ -309,7 +297,6 @@ export default function Dashboard() {
     setCtxMenu(null);
   };
 
-  // Equivalence check (NFA supported via internal NFA→DFA→minimize)
   const checkEquivalence = async () => {
     const ids = Array.from(selected);
     if (ids.length !== 2) return;
@@ -330,7 +317,6 @@ export default function Dashboard() {
     }
   };
 
-  // Clone a project
   const cloneCard = async (id: string) => {
     const card = projects.find(p => p.id === id);
     if (!card || !user) return;
@@ -345,7 +331,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header */}
       <header className="dashboard-header">
         <span className="logo">⬡ DFAVisualizer</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -375,7 +360,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Equivalence result banner */}
       {eqResult && (
         <div style={{
           padding: '10px 32px',
@@ -394,7 +378,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Content */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {!user ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
@@ -477,7 +460,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Context menu */}
       {ctxMenu && (
         <CanvasContextMenu
           x={ctxMenu.x} y={ctxMenu.y}
@@ -492,7 +474,6 @@ export default function Dashboard() {
         />
       )}
 
-      {/* New project modal */}
       {showModal && (
         <NewProjectModal
           onClose={() => setShowModal(false)}

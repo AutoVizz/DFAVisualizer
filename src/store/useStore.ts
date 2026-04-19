@@ -8,7 +8,6 @@ import type {
 import { simulate } from '../engine/simulate';
 import AutomatonWorker from '../workers/automaton.worker?worker';
 
-// ── Worker singleton ──────────────────────────────────────────────────────────
 let worker: Worker | null = null;
 
 function getWorker(): Worker {
@@ -18,27 +17,21 @@ function getWorker(): Worker {
   return worker;
 }
 
-// ── Store shape ───────────────────────────────────────────────────────────────
 interface StoreState {
-  // Projects
   activeProject:    Automaton | null;
   viewOnlyProject:  Automaton | null;
 
-  // Simulation
   simulationResult: SimulationResult | null;
   simulationStep:   number;
   isSimulating:     boolean;
 
-  // Worker
   workerStatus: 'idle' | 'running' | 'error';
   workerError:  string | null;
 
-  // Auth
   user: FirebaseUser | null;
 }
 
 interface StoreActions {
-  // Project mutations
   setActiveProject:    (project: Automaton | null) => void;
   updateStates:        (states: Automaton['states']) => void;
   updateTransitions:   (transitions: Automaton['transitions']) => void;
@@ -47,29 +40,24 @@ interface StoreActions {
   patchActiveProject:  (patch: Partial<Automaton>) => void;
   updateActiveProject: (updater: (project: Automaton) => Automaton) => void;
 
-  // Simulation
   runSimulation:       (input: string) => void;
   runSimulationFull:   (input: string) => void;
   stepForward:         () => void;
   stepBackward:        () => void;
   resetSimulation:     () => void;
 
-  // Worker
   dispatchToWorker: (
     msg: import('../types').WorkerInMessage,
     onResult: (result: Automaton) => void,
     onError:  (code: string, msg?: string) => void,
   ) => void;
 
-  // Auth
   setUser: (user: FirebaseUser | null) => void;
 }
 
 type Store = StoreState & StoreActions;
 
-// ── Store implementation ──────────────────────────────────────────────────────
 export const useStore = create<Store>((set, get) => ({
-  // ── Initial state ──────────────────────────────────────────────────────────
   activeProject:    null,
   viewOnlyProject:  null,
   simulationResult: null,
@@ -79,7 +67,6 @@ export const useStore = create<Store>((set, get) => ({
   workerError:      null,
   user:             null,
 
-  // ── Project actions ────────────────────────────────────────────────────────
   setActiveProject: (project) =>
     set({ activeProject: project, simulationResult: null, simulationStep: 0, isSimulating: false }),
 
@@ -111,7 +98,6 @@ export const useStore = create<Store>((set, get) => ({
       ? { activeProject: updater(s.activeProject) }
       : {}),
 
-  // ── Simulation actions ─────────────────────────────────────────────────────
   runSimulation: (input) => {
     const { activeProject } = get();
     if (!activeProject) return;
@@ -147,13 +133,11 @@ export const useStore = create<Store>((set, get) => ({
   resetSimulation: () =>
     set({ simulationResult: null, simulationStep: 0, isSimulating: false }),
 
-  // ── Worker dispatch ────────────────────────────────────────────────────────
   dispatchToWorker: (msg, onResult, onError) => {
     set({ workerStatus: 'running', workerError: null });
 
     const w = getWorker();
 
-    // Remove old listener
     w.onmessage = null;
     w.onerror  = null;
 
@@ -178,6 +162,5 @@ export const useStore = create<Store>((set, get) => ({
     w.postMessage(msg);
   },
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
   setUser: (user) => set({ user }),
 }));

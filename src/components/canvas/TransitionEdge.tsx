@@ -9,8 +9,8 @@ import type { Transition } from '../../types';
 
 export interface TransitionEdgeData {
   transition: Transition;
-  transitionIds?: string[]; // original IDs when merged
-  hasBidirectional?: boolean; // true when a reverse edge also exists
+  transitionIds?: string[];
+  hasBidirectional?: boolean;
   isActive?: boolean;
   isEditing?: boolean;
   editValue?: string;
@@ -54,7 +54,6 @@ function TransitionEdge({
   const isActive = !!data?.isActive;
   const isSelected = !!selected;
 
-  // Keep simulation and user-selection highlights visually distinct.
   const edgeColor = isActive && isSelected
     ? 'var(--orange)'
     : isActive
@@ -83,10 +82,9 @@ function TransitionEdge({
 
   if (isSelfLoop) {
     const cx = sourceX;
-    const cy = sourceY - 26; // top of node
+    const cy = sourceY - 26;
     const r  = SELF_LOOP_HEIGHT / 2;
 
-    // Arc loop above the node (non-cubic path)
     const d = `M ${cx - 2},${cy} A ${r},${r * 1.05} 0 1 1 ${cx + 2},${cy}`;
 
     const midX = cx;
@@ -123,8 +121,6 @@ function TransitionEdge({
   let labelX = 0;
   let labelY = 0;
 
-  // Clip the edge endpoint so arrows touch the destination circle boundary,
-  // while keeping the origin at the source center.
   const dx = targetX - sourceX;
   const dy = targetY - sourceY;
   const len = Math.hypot(dx, dy);
@@ -132,8 +128,6 @@ function TransitionEdge({
   const clippedTargetY = len > 0 ? targetY - (dy / len) * STATE_RADIUS : targetY;
 
   if (data?.hasBidirectional) {
-    // For A->B and B->A, draw mirrored quadratic arcs (one above, one below).
-    // Use a stable pair orientation so reverse edges get opposite control points.
     const canonicalForward = source < target;
     const ax = canonicalForward ? sourceX : targetX;
     const ay = canonicalForward ? sourceY : targetY;
@@ -154,11 +148,9 @@ function TransitionEdge({
 
     edgePath = `M ${sourceX},${sourceY} Q ${cx},${cy} ${clippedTargetX},${clippedTargetY}`;
 
-    // Quadratic midpoint at t = 0.5
     labelX = 0.25 * sourceX + 0.5 * cx + 0.25 * clippedTargetX;
     labelY = 0.25 * sourceY + 0.5 * cy + 0.25 * clippedTargetY;
   } else {
-    // Single-direction transitions are straight arrows.
     const [path, lx, ly] = getStraightPath({
       sourceX, sourceY,
       targetX: clippedTargetX,

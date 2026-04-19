@@ -13,8 +13,6 @@ import {
 import { db } from './firebase';
 import type { Automaton } from '../types';
 
-// ─── Local types used only by this layer ─────────────────────────────
-
 export type CollectionType = 'DFA' | 'NFA' | 'MinDFA' | 'Regex';
 
 export interface FirestoreDocument {
@@ -25,8 +23,6 @@ export interface FirestoreDocument {
   createdAt?: unknown;
   updatedAt?: unknown;
 }
-
-// ─── Abstract Operations ─────────────────────────────────────────────
 
 export async function saveDocument(
   targetCollection: CollectionType,
@@ -56,9 +52,7 @@ export async function saveDocument(
       return docId;
     }
   } catch {
-    // Permission denied — doc doesn't exist or not ours
   }
-  // Doc doesn't exist — create it
   await setDoc(docRef, {
     ...docData,
     createdAt: Timestamp.now(),
@@ -82,7 +76,6 @@ export async function loadDocument(
     const data = snap.data() as FirestoreDocument;
     const automaton = JSON.parse(data.json) as Automaton;
 
-    // Backfill runtime metadata
     (automaton as any).sourceCollection = targetCollection;
     (automaton as any).isPrivate = data.private;
     (automaton as any).ownerId = data.ownerId;
@@ -109,7 +102,6 @@ export async function loadAnyDocument(docId: string): Promise<Automaton | null> 
         return automaton;
       }
     } catch {
-      // Permission denied for this collection — skip it
       continue;
     }
   }
@@ -125,7 +117,6 @@ export async function listAllDocuments(
 
   for (const coll of collections) {
     try {
-      // 1. Fetch own docs (both public and private)
       const ownQ = query(collection(db, coll), where('ownerId', '==', ownerId));
       const ownSnap = await getDocs(ownQ);
 
@@ -137,7 +128,6 @@ export async function listAllDocuments(
         });
       });
 
-      // 2. Fetch public docs from others
       const pubQ = query(
         collection(db, coll),
         where('private', '==', false)
@@ -154,7 +144,6 @@ export async function listAllDocuments(
         }
       });
     } catch {
-      // Permission denied for this collection — skip
       continue;
     }
   }
@@ -191,11 +180,8 @@ export async function renameDocument(
       updatedAt: Timestamp.now(),
     });
   } catch {
-    // Permission denied
   }
 }
-
-// ─── Clone ───────────────────────────────────────────────────────────
 
 export function cloneAutomaton(automaton: Automaton): Automaton {
   const cloned = structuredClone(automaton);

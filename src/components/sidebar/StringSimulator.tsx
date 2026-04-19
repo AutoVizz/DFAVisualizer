@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore }  from '../../store/useStore';
-import { emitGlobalAlert } from '../GlobalBanner';
+import { emitGlobalAlert } from '../ui/GlobalBanner';
 
 export default function StringSimulator() {
   const {
@@ -81,7 +81,6 @@ export default function StringSimulator() {
         )}
       </div>
 
-      {/* Step mode info */}
       {isSimulating && (
         <div style={{ marginBottom: 10 }}>
           <div className="step-indicator" style={{ marginBottom: 6 }}>
@@ -97,7 +96,6 @@ export default function StringSimulator() {
             Active: {activeLabels.length > 0 ? activeLabels.join(', ') : '∅ (dead)'}
           </div>
 
-          {/* Result badge — show when at end */}
           {atEnd && simulationResult && (
             <div style={{ marginTop: 8 }}>
               <span className={`badge ${simulationResult.accepted ? 'badge-accept' : 'badge-reject'}`}>
