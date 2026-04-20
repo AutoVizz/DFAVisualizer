@@ -29,7 +29,6 @@ export default function ViewOnly() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header */}
       <div style={{
         height: 48,
         background: 'var(--bg-surface)',
@@ -55,7 +54,6 @@ export default function ViewOnly() {
         </button>
       </div>
 
-      {/* View-only canvas */}
       <div style={{ flex: 1, position: 'relative' }}>
         <div className="viewonly-banner">
           <VisibilityIcon sx={{ fontSize: 16 }} /> Read-only view — use "Import" to edit this automaton

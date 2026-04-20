@@ -14,7 +14,6 @@ function StateNode({ data, selected }: NodeProps<StateNodeData>) {
 
   return (
     <div style={{ position: 'relative', width: 60, height: 60 }}>
-      {/* Start-state incoming arrow */}
       {state.isStart && (
         <svg
           style={{ position: 'absolute', left: -36, top: 18, overflow: 'visible', pointerEvents: 'none' }}
@@ -32,7 +31,6 @@ function StateNode({ data, selected }: NodeProps<StateNodeData>) {
         </svg>
       )}
 
-      {/* Outer ring (always) */}
       <div style={{
         position: 'absolute', inset: 0,
         borderRadius: '50%',
@@ -47,7 +45,6 @@ function StateNode({ data, selected }: NodeProps<StateNodeData>) {
         transition: 'all 0.2s ease',
         cursor: 'default',
       }}>
-        {/* Inner ring for accept state */}
         {state.isAccept && (
           <div style={{
             position: 'absolute',
@@ -68,7 +65,6 @@ function StateNode({ data, selected }: NodeProps<StateNodeData>) {
         </span>
       </div>
 
-      {/* Center anchor for both incoming and outgoing transitions */}
       <Handle
         type="target"
         position={Position.Top}

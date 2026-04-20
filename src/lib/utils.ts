@@ -1,6 +1,4 @@
 import type { Automaton } from '../types';
-
-/** Deep-clone an automaton, generating new UUIDs for all states and transitions. */
 export function cloneProject(source: Automaton, newName?: string): Automaton {
   const stateIdMap = new Map<string, string>();
   source.states.forEach(s => stateIdMap.set(s.id, crypto.randomUUID()));
@@ -26,8 +24,6 @@ export function cloneProject(source: Automaton, newName?: string): Automaton {
     minimizedDfaId: null,
   };
 }
-
-/** djb2 hash — returns an 8-char hex string. */
 export function djb2Hash(str: string): string {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -36,8 +32,6 @@ export function djb2Hash(str: string): string {
   }
   return hash.toString(16).padStart(8, '0');
 }
-
-/** Format a timestamp (ms) as a relative string. */
 export function relativeTime(ms: number): string {
   const diff = Date.now() - ms;
   const m = Math.floor(diff / 60_000);
@@ -48,13 +42,9 @@ export function relativeTime(ms: number): string {
   if (h < 24) return `${h}h ago`;
   return `${d}d ago`;
 }
-
-/** Create a blank automaton. */
 export function emptyAutomaton(id: string, name: string, type: 'DFA' | 'NFA'): Automaton {
   return { id, name, type, states: [], alphabet: [], transitions: [], minimizedDfaId: null };
 }
-
-/** Generate a next label like q0, q1, q2 by looking at existing state labels. */
 export function nextStateLabel(states: Automaton['states']): string {
   const maxNum = states.reduce((max, s) => {
     const m = s.label.match(/^q(\d+)$/);

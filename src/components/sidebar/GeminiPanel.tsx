@@ -91,11 +91,9 @@ function parseStrings(raw: string): string[] {
         if (strings.length > 0) return strings.slice(0, 5);
       }
     } catch {
-      // continue
     }
   }
 
-  // 2. Extract quoted strings
   const quoteRegex = /(["'])(.*?)\1/g;
   const quotes = [...raw.matchAll(quoteRegex)];
   if (quotes.length > 0) {
@@ -105,7 +103,6 @@ function parseStrings(raw: string): string[] {
     if (strings.length > 0) return strings.slice(-5);
   }
 
-  // 3. Fallback: tokens
   const tokens = raw
     .split(/[\n, ]+/)
     .map(s => s.replace(/^[\s\-\d.)"'`*\[\]]+|[\s"'`*\[\]]+$/g, '').trim())
@@ -188,7 +185,7 @@ const SUMMARISE_PROMPT = (prediction: string, alphabet: string[]) =>
 export default function GeminiPanel() {
   const { activeProject, user } = useStore();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [results, setResults] = useState<ProbeResult[]>([]);
+  const [, setResults] = useState<ProbeResult[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wasReduced, setWasReduced] = useState(false);

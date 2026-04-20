@@ -11,7 +11,6 @@ import {
   fetchMinimizedDfa,
   upsertMinimizedDfa,
   updateProjectMinimizedId,
-  toggleProjectPrivacy,
 } from '../lib/firestoreHelpers';
 import { cloneProject, djb2Hash, emptyAutomaton, relativeTime } from '../lib/utils';
 import { canonicalize }  from '../engine/equivalence';
@@ -19,9 +18,7 @@ import { thompson }     from '../engine/thompson';
 import { nfaToDfa } from '../engine/nfaToDfa';
 import { minimize } from '../engine/minimize';
 import type { Automaton, FirestoreProject } from '../types';
-import { emitGlobalAlert } from '../components/ui/GlobalBanner';
 import CanvasContextMenu from '../components/canvas/CanvasContextMenu';
-import { VisibilityIcon, VisibilityOffIcon } from '../components/ui/Icons';
 
 type ProjectCard = FirestoreProject & { id: string };
 
@@ -103,7 +100,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
     try {
       thompson(regex);
       setRegexError('');
-      const projectName = regexName.trim() || `Minimized DFA for /${regex}/`;
+      const projectName = regexName.trim() || `NFA for /${regex}/`;
       const extraAlpha  = regexAlpha
         .split(',')
         .map(s => s.trim())
@@ -118,11 +115,12 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <p className="modal-title">New Project</p>
+
         <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
           {(['nfa', 'dfa', 'regex'] as const).map(t => (
             <button key={t} className={`btn btn-sm ${tab === t ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setTab(t)}>
-              {t === 'nfa' ? 'Empty NFA' : t === 'dfa' ? 'Empty DFA' : 'Regex → Minimized DFA'}
+              {t === 'nfa' ? 'Empty NFA' : t === 'dfa' ? 'Empty DFA' : 'Regex → NFA'}
             </button>
           ))}
         </div>
@@ -160,7 +158,7 @@ function NewProjectModal({ onClose, onCreate, onWorker, workerStatus }: NewProje
             {regexError && <p style={{ fontSize: 11, color: 'var(--red)', marginBottom: 8 }}>{regexError}</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-primary" disabled={workerStatus === 'running'} onClick={handleRegex}>
-                {workerStatus === 'running' ? <span className="spinner" /> : null} Build Minimized DFA
+                {workerStatus === 'running' ? <span className="spinner" /> : null} Build NFA
               </button>
               <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
             </div>
@@ -180,8 +178,6 @@ export default function Dashboard() {
   const [showModal,   setShowModal]   = useState(false);
   const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number; id: string } | null>(null);
   const [loading,     setLoading]     = useState(false);
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editingName,   setEditingName]   = useState('');
   const [eqResult,    setEqResult]    = useState<{
     equivalent: boolean;
     ids: string[];
@@ -227,7 +223,7 @@ export default function Dashboard() {
       await signInWithGithub();
     } catch (err: any) {
       console.error(err);
-      emitGlobalAlert('OAuth Error: ' + (err?.message || 'Unknown error'));
+      alert('OAuth Error: ' + (err?.message || 'Unknown error'));
     }
   };
 
@@ -265,9 +261,10 @@ export default function Dashboard() {
 
   const buildRegexNfa = (regex: string, name: string, extraAlphabet: string[]) => {
     dispatchToWorker(
-      { type: 'THOMPSON_TO_MIN_DFA', payload: { regex, extraAlphabet } },
+      { type: 'THOMPSON', payload: { regex } },
       async result => {
-        const namedResult = { ...result, name };
+        const mergedAlpha = [...new Set([...result.alphabet, ...extraAlphabet])];
+        const namedResult = { ...result, name, alphabet: mergedAlpha };
         setActiveProject(namedResult);
         if (user) await saveProject(namedResult.id, namedResult, user.uid);
         setShowModal(false);
@@ -282,21 +279,12 @@ export default function Dashboard() {
     setProjects(p => p.filter(c => c.id !== id));
   };
 
-  const handleRenameCommit = async (id: string) => {
-    const trimmed = editingName.trim();
-    setEditingCardId(null);
-    if (!trimmed) return;
+  const handleRename = async (id: string) => {
     const current = projects.find(p => p.id === id)?.name ?? '';
-    if (trimmed === current) return;
-    await renameProject(id, trimmed);
-    setProjects(p => p.map(c => c.id === id ? { ...c, name: trimmed } : c));
-  };
-
-  const startRename = (id: string) => {
-    const current = projects.find(p => p.id === id)?.name ?? '';
-    setEditingName(current);
-    setEditingCardId(id);
-    setCtxMenu(null);
+    const name    = prompt('Rename project:', current);
+    if (!name?.trim()) return;
+    await renameProject(id, name.trim());
+    setProjects(p => p.map(c => c.id === id ? { ...c, name: name.trim() } : c));
   };
 
   const checkEquivalence = async () => {
@@ -315,7 +303,7 @@ export default function Dashboard() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      emitGlobalAlert(`Equivalence check failed: ${message}`);
+      alert(`Equivalence check failed: ${message}`);
     }
   };
 
@@ -326,11 +314,6 @@ export default function Dashboard() {
     const copy = cloneProject(src);
     await saveProject(copy.id, copy, user.uid);
     await loadProjects();
-  };
-
-  const togglePrivacy = async (id: string, isPrivate: boolean) => {
-    await toggleProjectPrivacy(id, isPrivate);
-    setProjects(p => p.map(c => c.id === id ? { ...c, private: isPrivate } : c));
   };
 
   const selectedArr = Array.from(selected);
@@ -429,48 +412,17 @@ export default function Dashboard() {
                   </div>
                   <div className="project-card-body">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      {editingCardId === card.id ? (
-                        <input
-                          autoFocus
-                          className="input"
-                          style={{ padding: '2px 6px', fontSize: 13, minHeight: 0, height: 24, flex: 1, marginRight: 8 }}
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); handleRenameCommit(card.id); }
-                            if (e.key === 'Escape') setEditingCardId(null);
-                          }}
-                          onBlur={() => handleRenameCommit(card.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span className="project-card-name" onDoubleClick={(e) => { e.stopPropagation(); startRename(card.id); }}>
-                          {card.name}
-                        </span>
-                      )}
+                      <span className="project-card-name">{card.name}</span>
                       <span className={`badge ${card.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>{card.type}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span className="project-card-meta">{relativeTime(card.updatedAt)}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button
-                          className="btn btn-ghost"
-                          style={{ padding: 4, minHeight: 0, height: 'auto', color: 'var(--text-muted)' }}
-                          onClick={e => {
-                            e.stopPropagation();
-                            togglePrivacy(card.id, !card.private);
-                          }}
-                          title={card.private ? "Make public" : "Make private"}
-                        >
-                          {!card.private ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                        </button>
-                        <input type="checkbox" checked={isSelected}
-                          onChange={e => toggleSelect(card.id, e as unknown as React.MouseEvent)}
-                          onClick={e => e.stopPropagation()}
-                          title="Select for equivalence check"
-                          style={{ accentColor: 'var(--accent)' }}
-                        />
-                      </div>
+                      <input type="checkbox" checked={isSelected}
+                        onChange={e => toggleSelect(card.id, e as unknown as React.MouseEvent)}
+                        onClick={e => e.stopPropagation()}
+                        title="Select for equivalence check"
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -487,7 +439,7 @@ export default function Dashboard() {
           items={[
             { label: 'Open',   action: () => { const c = projects.find(p => p.id === ctxMenu.id); if (c) openProject(c); } },
             { label: 'Clone',  action: () => cloneCard(ctxMenu.id) },
-            { label: 'Rename', action: () => startRename(ctxMenu.id) },
+            { label: 'Rename', action: () => handleRename(ctxMenu.id) },
             { label: '---',    action: () => {} },
             { label: 'Delete', danger: true, action: () => handleDelete(ctxMenu.id) },
           ]}

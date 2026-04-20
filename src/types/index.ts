@@ -67,5 +67,4 @@ export interface FirestoreMinimizedDfa {
   private: boolean;
   automatonJson: string;
   canonicalString: string;
-  aiSummary?: string;
 }

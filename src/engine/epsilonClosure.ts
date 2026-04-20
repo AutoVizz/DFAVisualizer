@@ -1,9 +1,4 @@
 import type { Automaton } from '../types';
-
-/**
- * Compute the ε-closure of a set of states using iterative DFS.
- * No recursion to prevent stack overflow on large automata.
- */
 export function epsilonClosure(
   automaton: Automaton,
   stateIds: Set<string>,

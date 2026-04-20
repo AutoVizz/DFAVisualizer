@@ -7,7 +7,6 @@ import ReactFlow, {
   type Node, type Edge, type Connection,
   type NodeChange, type EdgeChange,
   type ReactFlowInstance,
-  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -142,13 +141,11 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     if (!project) { setRfNodes([]); setRfEdges([]); return; }
     setRfNodes(toRFNodes(project.states, activeStateIds, readOnly));
     setRfEdges(toRFEdges(project.transitions, activeTransitionIds));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, readOnly]);
 
   useEffect(() => {
     if (!project) return;
     setRfEdges(toRFEdges(project.transitions, activeTransitionIds));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.transitions, activeTransitionIds]);
 
   useEffect(() => {
@@ -173,7 +170,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         },
       };
     }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingEdgeId, editingEdgeValue]);
 
   useEffect(() => {
@@ -242,7 +238,6 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
         };
       });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.states, activeStateIds, readOnly]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
