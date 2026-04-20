@@ -1,9 +1,9 @@
-import type { Automaton, State, Transition } from "../types";
-import { autoLayout } from "./autoLayout";
-import { epsilonClosure } from "./epsilonClosure";
+import type { Automaton, State, Transition } from '../types';
+import { autoLayout } from './autoLayout';
+import { epsilonClosure } from './epsilonClosure';
 
 const MAX_REGEX_LENGTH = 100;
-const EPSILON = "ε";
+const EPSILON = 'ε';
 
 interface Token {
   type: TokenType;
@@ -12,7 +12,7 @@ interface Token {
 
 function lex(regex: string): Token[] {
   if (regex.length > MAX_REGEX_LENGTH) {
-    throw new Error("INVALID_REGEX: regex exceeds 100 characters");
+    throw new Error('INVALID_REGEX: regex exceeds 100 characters');
   }
 
   const tokens: Token[] = [];
@@ -20,39 +20,39 @@ function lex(regex: string): Token[] {
 
   for (let i = 0; i < regex.length; i++) {
     const ch = regex[i];
-    if (ch === "(") {
-      tokens.push({ type: "LPAREN" });
+    if (ch === '(') {
+      tokens.push({ type: 'LPAREN' });
       depth++;
-    } else if (ch === ")") {
-      if (depth === 0) throw new Error("INVALID_REGEX: unbalanced parentheses");
-      if (tokens.length > 0 && tokens[tokens.length - 1]!.type === "LPAREN") {
-        throw new Error("INVALID_REGEX: empty group ()");
+    } else if (ch === ')') {
+      if (depth === 0) throw new Error('INVALID_REGEX: unbalanced parentheses');
+      if (tokens.length > 0 && tokens[tokens.length - 1]!.type === 'LPAREN') {
+        throw new Error('INVALID_REGEX: empty group ()');
       }
-      tokens.push({ type: "RPAREN" });
+      tokens.push({ type: 'RPAREN' });
       depth--;
-    } else if (ch === "|") {
+    } else if (ch === '|') {
       const prev = tokens[tokens.length - 1];
-      if (!prev || prev.type === "LPAREN" || prev.type === "UNION") {
-        throw new Error("INVALID_REGEX: consecutive or leading operator |");
+      if (!prev || prev.type === 'LPAREN' || prev.type === 'UNION') {
+        throw new Error('INVALID_REGEX: consecutive or leading operator |');
       }
-      tokens.push({ type: "UNION" });
-    } else if (ch === "*") {
+      tokens.push({ type: 'UNION' });
+    } else if (ch === '*') {
       const prev = tokens[tokens.length - 1];
-      if (!prev || prev.type === "UNION" || prev.type === "LPAREN" || prev.type === "STAR") {
-        throw new Error("INVALID_REGEX: misplaced *");
+      if (!prev || prev.type === 'UNION' || prev.type === 'LPAREN' || prev.type === 'STAR') {
+        throw new Error('INVALID_REGEX: misplaced *');
       }
-      tokens.push({ type: "STAR" });
+      tokens.push({ type: 'STAR' });
     } else {
-      const value = ch === "#" ? EPSILON : ch;
-      tokens.push({ type: "CHAR", value });
+      const value = ch === '#' ? EPSILON : ch;
+      tokens.push({ type: 'CHAR', value });
     }
   }
 
-  if (depth !== 0) throw new Error("INVALID_REGEX: unbalanced parentheses");
+  if (depth !== 0) throw new Error('INVALID_REGEX: unbalanced parentheses');
 
   const last = tokens[tokens.length - 1];
-  if (last && last.type === "UNION") {
-    throw new Error("INVALID_REGEX: trailing operator");
+  if (last && (last.type === 'UNION')) {
+    throw new Error('INVALID_REGEX: trailing operator');
   }
 
   return tokens;
@@ -65,10 +65,10 @@ function insertConcat(tokens: Token[]): Token[] {
     result.push(curr);
     if (i < tokens.length - 1) {
       const next = tokens[i + 1]!;
-      const currIsVal = curr.type === "CHAR" || curr.type === "RPAREN" || curr.type === "STAR";
-      const nextIsVal = next.type === "CHAR" || next.type === "LPAREN";
+      const currIsVal = curr.type === 'CHAR' || curr.type === 'RPAREN' || curr.type === 'STAR';
+      const nextIsVal = next.type === 'CHAR' || next.type === 'LPAREN';
       if (currIsVal && nextIsVal) {
-        result.push({ type: "CONCAT" });
+        result.push({ type: 'CONCAT' });
       }
     }
   }
@@ -86,12 +86,12 @@ function shuntingYard(tokens: Token[]): Token[] {
   const opStack: Token[] = [];
 
   for (const token of tokens) {
-    if (token.type === "CHAR") {
+    if (token.type === 'CHAR') {
       output.push(token);
-    } else if (token.type === "STAR" || token.type === "CONCAT" || token.type === "UNION") {
+    } else if (token.type === 'STAR' || token.type === 'CONCAT' || token.type === 'UNION') {
       while (opStack.length > 0) {
         const top = opStack[opStack.length - 1]!;
-        if (top.type === "LPAREN") break;
+        if (top.type === 'LPAREN') break;
         const topPrec = PRECEDENCE[top.type] ?? 0;
         const currPrec = PRECEDENCE[token.type] ?? 0;
         if (topPrec >= currPrec) {
@@ -101,10 +101,10 @@ function shuntingYard(tokens: Token[]): Token[] {
         }
       }
       opStack.push(token);
-    } else if (token.type === "LPAREN") {
+    } else if (token.type === 'LPAREN') {
       opStack.push(token);
-    } else if (token.type === "RPAREN") {
-      while (opStack.length > 0 && opStack[opStack.length - 1]!.type !== "LPAREN") {
+    } else if (token.type === 'RPAREN') {
+      while (opStack.length > 0 && opStack[opStack.length - 1]!.type !== 'LPAREN') {
         output.push(opStack.pop()!);
       }
       opStack.pop();
@@ -149,13 +149,14 @@ function buildNfa(rpn: Token[]): NfaFrag {
   const stack: NfaFrag[] = [];
 
   for (const token of rpn) {
-    if (token.type === "CHAR") {
+    if (token.type === 'CHAR') {
       const states = new Map<string, NfaState>();
       const s = newState(states);
       const a = newState(states);
       addTransition(states, s, token.value!, a);
       stack.push({ start: s, accept: a, states });
-    } else if (token.type === "STAR") {
+
+    } else if (token.type === 'STAR') {
       const frag = stack.pop()!;
       const states = new Map(frag.states);
       const s = newState(states);
@@ -165,13 +166,15 @@ function buildNfa(rpn: Token[]): NfaFrag {
       addTransition(states, frag.accept, EPSILON, frag.start);
       addTransition(states, frag.accept, EPSILON, a);
       stack.push({ start: s, accept: a, states });
-    } else if (token.type === "CONCAT") {
+
+    } else if (token.type === 'CONCAT') {
       const frag2 = stack.pop()!;
       const frag1 = stack.pop()!;
       const states = mergeStates(frag1.states, frag2.states);
       addTransition(states, frag1.accept, EPSILON, frag2.start);
       stack.push({ start: frag1.start, accept: frag2.accept, states });
-    } else if (token.type === "UNION") {
+
+    } else if (token.type === 'UNION') {
       const frag2 = stack.pop()!;
       const frag1 = stack.pop()!;
       const states = mergeStates(frag1.states, frag2.states);
@@ -186,7 +189,7 @@ function buildNfa(rpn: Token[]): NfaFrag {
   }
 
   if (stack.length !== 1) {
-    throw new Error("INVALID_REGEX: malformed expression");
+    throw new Error('INVALID_REGEX: malformed expression');
   }
   return stack[0]!;
 }
@@ -215,7 +218,7 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
   });
 
   const alphabet = new Set<string>();
-  const states: State[] = order.map((oldId) => ({
+  const states: State[] = order.map(oldId => ({
     id: idMap.get(oldId)!,
     label: labelMap.get(oldId)!,
     isStart: oldId === frag.start,
@@ -247,7 +250,7 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
   const automaton: Automaton = {
     id: crypto.randomUUID(),
     name,
-    type: "NFA",
+    type: 'NFA',
     states,
     alphabet: Array.from(alphabet),
     transitions,
@@ -258,12 +261,12 @@ function fragmentToAutomaton(frag: NfaFrag, name: string): Automaton {
 }
 
 function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
-  const alphabet = nfa.alphabet.filter((s) => s !== "ε");
+  const alphabet = nfa.alphabet.filter(s => s !== 'ε');
 
-  const newStates: State[] = nfa.states.map((state) => {
+  const newStates: State[] = nfa.states.map(state => {
     const closure = epsilonClosure(nfa, new Set([state.id]));
     const isAccept = Array.from(closure).some(
-      (id) => nfa.states.find((s) => s.id === id)?.isAccept ?? false,
+      id => nfa.states.find(s => s.id === id)?.isAccept ?? false,
     );
     return { ...state, isAccept };
   });
@@ -277,12 +280,12 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
       for (const csId of fromClosure) {
         for (const t of nfa.transitions) {
           if (t.from === csId && t.symbols.includes(sym)) {
-            epsilonClosure(nfa, new Set([t.to])).forEach((id) => reached.add(id));
+            epsilonClosure(nfa, new Set([t.to])).forEach(id => reached.add(id));
           }
         }
       }
       for (const targetId of reached) {
-        if (!nfa.states.find((s) => s.id === targetId)) continue;
+        if (!nfa.states.find(s => s.id === targetId)) continue;
         const key = `${state.id}|${targetId}`;
         if (!transMap.has(key)) transMap.set(key, new Set());
         transMap.get(key)!.add(sym);
@@ -292,13 +295,13 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
 
   const rawTransitions: Transition[] = [];
   for (const [key, symbols] of transMap) {
-    const sepIdx = key.indexOf("|");
+    const sepIdx = key.indexOf('|');
     const from = key.slice(0, sepIdx);
     const to = key.slice(sepIdx + 1);
     rawTransitions.push({ id: crypto.randomUUID(), from, to, symbols: Array.from(symbols) });
   }
 
-  const startSt = newStates.find((s) => s.isStart);
+  const startSt = newStates.find(s => s.isStart);
   if (!startSt) return { ...nfa, states: newStates, alphabet, transitions: rawTransitions };
 
   const reachable = new Set<string>();
@@ -307,18 +310,18 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
     const curr = queue.shift()!;
     if (reachable.has(curr)) continue;
     reachable.add(curr);
-    rawTransitions.filter((t) => t.from === curr).forEach((t) => queue.push(t.to));
+    rawTransitions.filter(t => t.from === curr).forEach(t => queue.push(t.to));
   }
 
-  const reachableStates = newStates.filter((s) => reachable.has(s.id));
+  const reachableStates = newStates.filter(s => reachable.has(s.id));
   let counter = 1;
-  const relabeled = reachableStates.map((s) => ({
+  const relabeled = reachableStates.map(s => ({
     ...s,
-    label: s.isStart ? "q0" : `q${counter++}`,
+    label: s.isStart ? 'q0' : `q${counter++}`,
   }));
 
   const finalTransitions = rawTransitions.filter(
-    (t) => reachable.has(t.from) && reachable.has(t.to),
+    t => reachable.has(t.from) && reachable.has(t.to),
   );
 
   return autoLayout({
@@ -330,8 +333,8 @@ function eliminateEpsilonTransitions(nfa: Automaton): Automaton {
   });
 }
 
-export function thompson(regex: string, name = "Regex NFA"): Automaton {
-  if (!regex.trim()) throw new Error("INVALID_REGEX: empty regex");
+export function thompson(regex: string, name = 'Regex NFA'): Automaton {
+  if (!regex.trim()) throw new Error('INVALID_REGEX: empty regex');
 
   const tokens = lex(regex);
   const withConc = insertConcat(tokens);

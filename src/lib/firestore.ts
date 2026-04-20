@@ -9,11 +9,11 @@ import {
   query,
   where,
   Timestamp,
-} from "firebase/firestore";
-import { db } from "./firebase";
-import type { Automaton } from "../types";
+} from 'firebase/firestore';
+import { db } from './firebase';
+import type { Automaton } from '../types';
 
-export type CollectionType = "DFA" | "NFA" | "MinDFA" | "Regex";
+export type CollectionType = 'DFA' | 'NFA' | 'MinDFA' | 'Regex';
 
 export interface FirestoreDocument {
   name: string;
@@ -27,7 +27,7 @@ export interface FirestoreDocument {
 export async function saveDocument(
   targetCollection: CollectionType,
   ownerId: string,
-  automaton: Automaton,
+  automaton: Automaton
 ): Promise<string> {
   if (!db) return automaton.id;
   const docId = automaton.id;
@@ -51,7 +51,8 @@ export async function saveDocument(
       });
       return docId;
     }
-  } catch {}
+  } catch {
+  }
   await setDoc(docRef, {
     ...docData,
     createdAt: Timestamp.now(),
@@ -63,7 +64,7 @@ export async function saveDocument(
 
 export async function loadDocument(
   targetCollection: CollectionType,
-  docId: string,
+  docId: string
 ): Promise<Automaton | null> {
   if (!db) return null;
   try {
@@ -86,7 +87,7 @@ export async function loadDocument(
 }
 
 export async function loadAnyDocument(docId: string): Promise<Automaton | null> {
-  const collections: CollectionType[] = ["DFA", "NFA", "MinDFA", "Regex"];
+  const collections: CollectionType[] = ['DFA', 'NFA', 'MinDFA', 'Regex'];
   for (const coll of collections) {
     try {
       if (!db) continue;
@@ -108,15 +109,15 @@ export async function loadAnyDocument(docId: string): Promise<Automaton | null> 
 }
 
 export async function listAllDocuments(
-  ownerId: string,
+  ownerId: string
 ): Promise<Array<{ id: string; data: FirestoreDocument; collection: CollectionType }>> {
   if (!db) return [];
-  const collections: CollectionType[] = ["DFA", "NFA", "MinDFA", "Regex"];
+  const collections: CollectionType[] = ['DFA', 'NFA', 'MinDFA', 'Regex'];
   const allResults: Array<{ id: string; data: FirestoreDocument; collection: CollectionType }> = [];
 
   for (const coll of collections) {
     try {
-      const ownQ = query(collection(db, coll), where("ownerId", "==", ownerId));
+      const ownQ = query(collection(db, coll), where('ownerId', '==', ownerId));
       const ownSnap = await getDocs(ownQ);
 
       ownSnap.docs.forEach((d) => {
@@ -127,7 +128,10 @@ export async function listAllDocuments(
         });
       });
 
-      const pubQ = query(collection(db, coll), where("private", "==", false));
+      const pubQ = query(
+        collection(db, coll),
+        where('private', '==', false)
+      );
       const pubSnap = await getDocs(pubQ);
 
       pubSnap.docs.forEach((d) => {
@@ -149,7 +153,7 @@ export async function listAllDocuments(
 
 export async function deleteDocument(
   targetCollection: CollectionType,
-  docId: string,
+  docId: string
 ): Promise<void> {
   if (!db) return;
   await deleteDoc(doc(db, targetCollection, docId));
@@ -158,7 +162,7 @@ export async function deleteDocument(
 export async function renameDocument(
   targetCollection: CollectionType,
   docId: string,
-  newName: string,
+  newName: string
 ): Promise<void> {
   if (!db) return;
   const docRef = doc(db, targetCollection, docId);
@@ -175,7 +179,8 @@ export async function renameDocument(
       json: JSON.stringify(automaton),
       updatedAt: Timestamp.now(),
     });
-  } catch {}
+  } catch {
+  }
 }
 
 export function cloneAutomaton(automaton: Automaton): Automaton {

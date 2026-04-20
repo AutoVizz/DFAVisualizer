@@ -1,6 +1,11 @@
-import { memo } from "react";
-import { BaseEdge, EdgeLabelRenderer, getStraightPath, type EdgeProps } from "reactflow";
-import type { Transition } from "../../types";
+import { memo } from 'react';
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getStraightPath,
+  type EdgeProps,
+} from 'reactflow';
+import type { Transition } from '../../types';
 
 export interface TransitionEdgeData {
   transition: Transition;
@@ -19,26 +24,24 @@ const BIDIRECTIONAL_OFFSET = 26;
 const STATE_RADIUS = 30;
 
 const labelStyle: React.CSSProperties = {
-  position: "absolute",
-  pointerEvents: "all",
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border)",
+  position: 'absolute',
+  pointerEvents: 'all',
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border)',
   borderRadius: 4,
-  padding: "1px 6px",
+  padding: '1px 6px',
   fontSize: 12,
   fontFamily: "'JetBrains Mono', monospace",
-  color: "var(--text-secondary)",
-  userSelect: "none",
+  color: 'var(--text-secondary)',
+  userSelect: 'none',
 };
 
 function TransitionEdge({
   id,
   source,
   target,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
+  sourceX, sourceY,
+  targetX, targetY,
   sourcePosition,
   targetPosition,
   data,
@@ -46,40 +49,31 @@ function TransitionEdge({
   style,
   selected,
 }: EdgeProps<TransitionEdgeData>) {
-  const label = data?.transition.symbols.join(", ") ?? "";
+  const label = data?.transition.symbols.join(', ') ?? '';
   const isSelfLoop = source === target;
   const isActive = !!data?.isActive;
   const isSelected = !!selected;
 
-  const edgeColor =
-    isActive && isSelected
-      ? "var(--orange)"
-      : isActive
-        ? "var(--yellow)"
-        : isSelected
-          ? "var(--accent)"
-          : "var(--text-muted)";
+  const edgeColor = isActive && isSelected
+    ? 'var(--orange)'
+    : isActive
+    ? 'var(--yellow)'
+    : isSelected
+    ? 'var(--accent)'
+    : 'var(--text-muted)';
   const edgeStyle = {
     ...(style ?? {}),
     stroke: edgeColor,
     strokeWidth: isActive || isSelected ? 3 : 2,
   } as React.CSSProperties;
-
+  
   const markerId = `arrowhead-${id}`;
   const marker = `url(#${markerId})`;
 
   const markerSvg = (
-    <svg style={{ position: "absolute", width: 0, height: 0 }}>
+    <svg style={{ position: 'absolute', width: 0, height: 0 }}>
       <defs>
-        <marker
-          id={markerId}
-          markerWidth="12"
-          markerHeight="12"
-          refX="10"
-          refY="6"
-          markerUnits="userSpaceOnUse"
-          orient="auto"
-        >
+        <marker id={markerId} markerWidth="12" markerHeight="12" refX="10" refY="6" markerUnits="userSpaceOnUse" orient="auto">
           <path d="M0,0 L0,12 L12,6 z" fill={edgeColor} />
         </marker>
       </defs>
@@ -89,7 +83,7 @@ function TransitionEdge({
   if (isSelfLoop) {
     const cx = sourceX;
     const cy = sourceY - 26;
-    const r = SELF_LOOP_HEIGHT / 2;
+    const r  = SELF_LOOP_HEIGHT / 2;
 
     const d = `M ${cx - 2},${cy} A ${r},${r * 1.05} 0 1 1 ${cx + 2},${cy}`;
 
@@ -99,12 +93,18 @@ function TransitionEdge({
     return (
       <>
         {markerSvg}
-        <path id={id} d={d} fill="none" markerEnd={marker} style={edgeStyle} />
+        <path
+          id={id}
+          d={d}
+          fill="none"
+          markerEnd={marker}
+          style={edgeStyle}
+        />
         <EdgeLabelRenderer>
           <div
             style={{
               ...labelStyle,
-              border: `1px solid ${isActive || isSelected ? edgeColor : "var(--border-light)"}`,
+              border: `1px solid ${isActive || isSelected ? edgeColor : 'var(--border-light)'}`,
               color: isActive || isSelected ? edgeColor : labelStyle.color,
               transform: `translate(-50%, -50%) translate(${midX}px,${midY}px)`,
             }}
@@ -117,7 +117,7 @@ function TransitionEdge({
     );
   }
 
-  let edgePath = "";
+  let edgePath = '';
   let labelX = 0;
   let labelY = 0;
 
@@ -152,8 +152,7 @@ function TransitionEdge({
     labelY = 0.25 * sourceY + 0.5 * cy + 0.25 * clippedTargetY;
   } else {
     const [path, lx, ly] = getStraightPath({
-      sourceX,
-      sourceY,
+      sourceX, sourceY,
       targetX: clippedTargetX,
       targetY: clippedTargetY,
       sourcePosition,
@@ -172,11 +171,11 @@ function TransitionEdge({
         <div
           style={{
             ...labelStyle,
-            border: `1px solid ${isActive || isSelected || data?.isEditing ? edgeColor : "var(--border)"}`,
+            border: `1px solid ${isActive || isSelected || data?.isEditing ? edgeColor : 'var(--border)'}`,
             color: isActive || isSelected ? edgeColor : labelStyle.color,
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             padding: data?.isEditing ? 0 : labelStyle.padding,
-            overflow: "visible",
+            overflow: 'visible',
           }}
           className="nodrag nopan"
         >
@@ -185,25 +184,22 @@ function TransitionEdge({
               autoFocus
               className="input"
               style={{
-                padding: "2px 6px",
+                padding: '2px 6px',
                 fontSize: 12,
                 minHeight: 0,
                 height: 24,
-                textAlign: "center",
+                textAlign: 'center',
                 width: Math.max(48, ((data.editValue?.length ?? 1) + 1) * 8),
-                background: "var(--bg-surface)",
-                border: "none",
-                outline: "none",
+                background: 'var(--bg-surface)',
+                border: 'none',
+                outline: 'none',
                 borderRadius: 4,
               }}
-              value={data.editValue ?? ""}
-              onChange={(e) => data.onEditChange?.(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  data.onEditCommit?.();
-                }
-                if (e.key === "Escape") data.onEditCancel?.();
+              value={data.editValue ?? ''}
+              onChange={e => data.onEditChange?.(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); data.onEditCommit?.(); }
+                if (e.key === 'Escape') data.onEditCancel?.();
               }}
               onBlur={() => data.onEditCommit?.()}
             />

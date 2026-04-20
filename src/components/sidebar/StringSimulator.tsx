@@ -1,34 +1,27 @@
-import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { emitGlobalAlert } from "../ui/GlobalBanner";
+import { useState } from 'react';
+import { useStore }  from '../../store/useStore';
+import { emitGlobalAlert } from '../ui/GlobalBanner';
 
 export default function StringSimulator() {
   const {
-    activeProject,
-    simulationResult,
-    simulationStep,
-    isSimulating,
-    runSimulation,
-    runSimulationFull,
-    stepForward,
-    stepBackward,
-    resetSimulation,
+    activeProject, simulationResult, simulationStep, isSimulating,
+    runSimulation, runSimulationFull, stepForward, stepBackward, resetSimulation,
   } = useStore();
 
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
 
   if (!activeProject) return null;
   const disabled = activeProject.states.length === 0;
 
-  const symbols = simulationResult?.inputSymbols ?? (input === "" ? [] : Array.from(input));
+  const symbols = simulationResult?.inputSymbols ?? (input === '' ? [] : Array.from(input));
   const history = simulationResult?.stateHistory ?? [];
   const currentSymbol = simulationStep > 0 ? symbols[simulationStep - 1] : null;
   const activeIds = history[simulationStep] ?? [];
   const activeLabels = activeIds.map(
-    (id) => activeProject.states.find((s) => s.id === id)?.label ?? id,
+    id => activeProject.states.find(s => s.id === id)?.label ?? id,
   );
 
-  const atEnd = isSimulating && simulationStep === history.length - 1;
+  const atEnd   = isSimulating && simulationStep === history.length - 1;
   const atStart = simulationStep === 0;
 
   const tryRun = (runner: () => void) => {
@@ -48,18 +41,14 @@ export default function StringSimulator() {
         className="input"
         placeholder="Input string ω"
         value={input}
-        onChange={(e) => {
-          setInput(e.target.value);
-          if (isSimulating) resetSimulation();
-        }}
+        onChange={e => { setInput(e.target.value); if (isSimulating) resetSimulation(); }}
         style={{ marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}
         disabled={disabled}
       />
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <button
-          className="btn btn-primary btn-sm"
-          style={{ flex: 1 }}
+          className="btn btn-primary btn-sm" style={{ flex: 1 }}
           disabled={disabled}
           onClick={() => tryRun(() => runSimulationFull(input))}
         >
@@ -88,18 +77,14 @@ export default function StringSimulator() {
           →
         </button>
         {isSimulating && (
-          <button className="btn btn-ghost btn-sm" onClick={resetSimulation} title="Reset">
-            ✕
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={resetSimulation} title="Reset">✕</button>
         )}
       </div>
 
       {isSimulating && (
         <div style={{ marginBottom: 10 }}>
           <div className="step-indicator" style={{ marginBottom: 6 }}>
-            <span>
-              Step {simulationStep}/{history.length - 1}
-            </span>
+            <span>Step {simulationStep}/{history.length - 1}</span>
             {currentSymbol !== null && (
               <>
                 <span>→ reading</span>
@@ -107,16 +92,14 @@ export default function StringSimulator() {
               </>
             )}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Active: {activeLabels.length > 0 ? activeLabels.join(", ") : "∅ (dead)"}
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Active: {activeLabels.length > 0 ? activeLabels.join(', ') : '∅ (dead)'}
           </div>
 
           {atEnd && simulationResult && (
             <div style={{ marginTop: 8 }}>
-              <span
-                className={`badge ${simulationResult.accepted ? "badge-accept" : "badge-reject"}`}
-              >
-                {simulationResult.accepted ? "✓ ACCEPT" : "✗ REJECT"}
+              <span className={`badge ${simulationResult.accepted ? 'badge-accept' : 'badge-reject'}`}>
+                {simulationResult.accepted ? '✓ ACCEPT' : '✗ REJECT'}
               </span>
             </div>
           )}

@@ -1,36 +1,33 @@
-import React from "react";
+import React from 'react';
 
-const BANNER_ID = "dfa-global-banner";
+const BANNER_ID = 'dfa-global-banner';
 let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function emitGlobalAlert(message: string | null) {
   const existing = document.getElementById(BANNER_ID);
   if (existing) existing.remove();
-  if (dismissTimer) {
-    clearTimeout(dismissTimer);
-    dismissTimer = null;
-  }
+  if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
   if (!message) return;
 
-  const banner = document.createElement("div");
+  const banner = document.createElement('div');
   banner.id = BANNER_ID;
   Object.assign(banner.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    right: "0",
-    zIndex: "2147483647",
-    background: "#dc2626",
-    color: "#fff",
-    padding: "11px 20px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.22)",
-    fontFamily: "inherit",
-    fontSize: "13.5px",
-    fontWeight: "500",
+    position:   'fixed',
+    top:        '0',
+    left:       '0',
+    right:      '0',
+    zIndex:     '2147483647',
+    background: '#dc2626',
+    color:      '#fff',
+    padding:    '11px 20px',
+    display:    'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap:        '10px',
+    boxShadow:  '0 4px 16px rgba(0,0,0,0.22)',
+    fontFamily: 'inherit',
+    fontSize:   '13.5px',
+    fontWeight: '500',
   });
 
   banner.innerHTML = `
@@ -49,12 +46,9 @@ export function emitGlobalAlert(message: string | null) {
 
   const close = () => {
     banner.remove();
-    if (dismissTimer) {
-      clearTimeout(dismissTimer);
-      dismissTimer = null;
-    }
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
   };
 
-  document.getElementById(`${BANNER_ID}-close`)?.addEventListener("click", close);
+  document.getElementById(`${BANNER_ID}-close`)?.addEventListener('click', close);
   dismissTimer = setTimeout(close, 8000);
 }

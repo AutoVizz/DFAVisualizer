@@ -1,5 +1,6 @@
-import type { Automaton, SimulationResult } from "../types";
-import { epsilonClosure } from "./epsilonClosure";
+import type { Automaton, SimulationResult } from '../types';
+import { epsilonClosure } from './epsilonClosure';
+
 
 function move(automaton: Automaton, states: Set<string>, symbol: string): Set<string> {
   const result = new Set<string>();
@@ -14,15 +15,16 @@ function move(automaton: Automaton, states: Set<string>, symbol: string): Set<st
 }
 
 export function simulate(automaton: Automaton, input: string): SimulationResult {
-  const startState = automaton.states.find((s) => s.isStart);
+
+  const startState = automaton.states.find(s => s.isStart);
   if (!startState) {
     return { accepted: false, stateHistory: [[]], inputSymbols: [] };
   }
 
-  const symbols = input === "" ? [] : Array.from(input);
+  const symbols = input === '' ? [] : Array.from(input);
 
-  if (automaton.type === "DFA") {
-    const dfaAlphabet = automaton.alphabet.filter((a) => a !== "ε");
+  if (automaton.type === 'DFA') {
+    const dfaAlphabet = automaton.alphabet.filter(a => a !== 'ε');
     for (const state of automaton.states) {
       for (const sym of dfaAlphabet) {
         let count = 0;
@@ -30,14 +32,10 @@ export function simulate(automaton: Automaton, input: string): SimulationResult 
           if (t.from === state.id && t.symbols.includes(sym)) count++;
         }
         if (count === 0) {
-          throw new Error(
-            `Your DFA is incomplete: state "${state.label}" doesn't have a transition for symbol "${sym}".`,
-          );
+          throw new Error(`Invalid DFA: State '${state.label}' is missing a transition for symbol '${sym}'.`);
         }
         if (count > 1) {
-          throw new Error(
-            `Your DFA is invalid: state "${state.label}" has multiple transitions for symbol "${sym}".`,
-          );
+          throw new Error(`Invalid DFA: State '${state.label}' has multiple transitions for symbol '${sym}'.`);
         }
       }
     }
@@ -53,13 +51,13 @@ export function simulate(automaton: Automaton, input: string): SimulationResult 
         return null;
       })();
       if (!nextId) {
-        throw new Error(`The symbol "${sym}" isn't in this automaton's alphabet.`);
+        throw new Error(`Invalid input: Symbol '${sym}' is not in the alphabet.`);
       }
       currentId = nextId;
       history.push([currentId]);
     }
 
-    const finalState = automaton.states.find((s) => s.id === currentId);
+    const finalState = automaton.states.find(s => s.id === currentId);
     return {
       accepted: finalState?.isAccept ?? false,
       stateHistory: history,
@@ -75,8 +73,8 @@ export function simulate(automaton: Automaton, input: string): SimulationResult 
       history.push(Array.from(current));
     }
 
-    const accepted = Array.from(current).some((id) => {
-      const st = automaton.states.find((s) => s.id === id);
+    const accepted = Array.from(current).some(id => {
+      const st = automaton.states.find(s => s.id === id);
       return st?.isAccept ?? false;
     });
 

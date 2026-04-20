@@ -1,7 +1,7 @@
-import dagre from "@dagrejs/dagre";
-import type { Automaton } from "../types";
+import dagre from '@dagrejs/dagre';
+import type { Automaton } from '../types';
 
-const NODE_WIDTH = 60;
+const NODE_WIDTH  = 60;
 const NODE_HEIGHT = 60;
 const COLLISION_STEP = 80;
 
@@ -13,11 +13,11 @@ export function autoLayout(automaton: Automaton): Automaton {
   const g = new dagre.graphlib.Graph();
 
   g.setGraph({
-    rankdir: "LR",
-    ranksep: 160,
-    nodesep: 100,
-    marginx: 60,
-    marginy: 60,
+    rankdir:  'LR',
+    ranksep:  160,
+    nodesep:  100,
+    marginx:  60,
+    marginy:  60,
   });
   g.setDefaultEdgeLabel(() => ({}));
 
@@ -31,11 +31,21 @@ export function autoLayout(automaton: Automaton): Automaton {
 
   dagre.layout(g);
 
-  const used = new Set<string>();
-  const states = automaton.states.map((state) => {
+  const updatedStates = automaton.states.map(state => {
     const node = g.node(state.id);
-    let x = node ? node.x - NODE_WIDTH / 2 : state.position.x;
-    let y = node ? node.y - NODE_HEIGHT / 2 : state.position.y;
+    return {
+      ...state,
+      position: {
+        x: node ? node.x - NODE_WIDTH / 2 : state.position.x,
+        y: node ? node.y - NODE_HEIGHT / 2 : state.position.y,
+      },
+    };
+  });
+
+  const used = new Set<string>();
+  const uniquedStates = updatedStates.map(state => {
+    let x = state.position.x;
+    let y = state.position.y;
     while (used.has(keyFor(x, y))) {
       x += COLLISION_STEP;
       y += COLLISION_STEP;
@@ -44,5 +54,5 @@ export function autoLayout(automaton: Automaton): Automaton {
     return { ...state, position: { x, y } };
   });
 
-  return { ...automaton, states };
+  return { ...automaton, states: uniquedStates };
 }

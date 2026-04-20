@@ -4,8 +4,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User,
-} from "firebase/auth";
-import { auth } from "./firebase";
+} from 'firebase/auth';
+import { auth } from './firebase';
 
 const provider = new GithubAuthProvider();
 
