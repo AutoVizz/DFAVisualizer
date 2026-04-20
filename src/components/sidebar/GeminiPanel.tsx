@@ -209,7 +209,7 @@ export default function GeminiPanel() {
 
   const handleSummarize = async () => {
     if (!token) {
-      setError('Set VITE_GEMINI_TOKEN in your .env file and restart the dev server.');
+      setError('Set VITE_GEMINI_TOKEN in your .env file or github secrets and restart the dev server.');
       return;
     }
     if (isEmpty) return;
