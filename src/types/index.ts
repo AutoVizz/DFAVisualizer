@@ -16,7 +16,7 @@ export interface Transition {
 export interface Automaton {
   id: string;
   name: string;
-  type: 'DFA' | 'NFA';
+  type: "DFA" | "NFA";
   states: State[];
   alphabet: string[];
   transitions: Transition[];
@@ -30,20 +30,17 @@ export interface SimulationResult {
 }
 
 export type WorkerInMessage =
-  | { type: 'NFA_TO_DFA'; payload: Automaton }
-  | { type: 'NFA_TO_MIN_DFA'; payload: Automaton }
-  | { type: 'MINIMIZE';   payload: Automaton }
-  | { type: 'THOMPSON';   payload: { regex: string } }
-  | { type: 'THOMPSON_TO_MIN_DFA'; payload: { regex: string; extraAlphabet?: string[] } };
+  | { type: "NFA_TO_DFA"; payload: Automaton }
+  | { type: "NFA_TO_MIN_DFA"; payload: Automaton }
+  | { type: "MINIMIZE"; payload: Automaton }
+  | { type: "THOMPSON"; payload: { regex: string } }
+  | { type: "THOMPSON_TO_MIN_DFA"; payload: { regex: string; extraAlphabet?: string[] } };
 
-export type WorkerErrorCode =
-  | 'MAX_STATE_LIMIT_EXCEEDED'
-  | 'INVALID_REGEX'
-  | 'UNKNOWN';
+export type WorkerErrorCode = "MAX_STATE_LIMIT_EXCEEDED" | "INVALID_REGEX" | "UNKNOWN";
 
 export type WorkerOutMessage =
-  | { type: 'RESULT'; payload: Automaton }
-  | { type: 'ERROR';  code: WorkerErrorCode; message?: string };
+  | { type: "RESULT"; payload: Automaton }
+  | { type: "ERROR"; code: WorkerErrorCode; message?: string };
 
 export interface EquivalenceResult {
   equivalent: boolean;
@@ -55,7 +52,7 @@ export interface FirestoreProject {
   ownerId: string;
   private: boolean;
   name: string;
-  type: 'DFA' | 'NFA';
+  type: "DFA" | "NFA";
   automatonJson: string;
   minimizedDfaId: string | null;
   createdAt: number;

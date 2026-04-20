@@ -1,16 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 interface MenuItem {
-  label:  string;
+  label: string;
   action: () => void;
   danger?: boolean;
   disabled?: boolean;
 }
 
 interface ContextMenuProps {
-  x:       number;
-  y:       number;
-  items:   MenuItem[];
+  x: number;
+  y: number;
+  items: MenuItem[];
   onClose: () => void;
 }
 
@@ -23,11 +23,11 @@ export default function CanvasContextMenu({ x, y, items, onClose }: ContextMenuP
         onClose();
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  const menuX = Math.min(x, window.innerWidth  - 180);
+  const menuX = Math.min(x, window.innerWidth - 180);
   const menuY = Math.min(y, window.innerHeight - items.length * 36 - 16);
 
   return (
@@ -35,21 +35,24 @@ export default function CanvasContextMenu({ x, y, items, onClose }: ContextMenuP
       ref={ref}
       className="context-menu"
       style={{ left: menuX, top: menuY }}
-      onContextMenu={e => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {items.map((item, i) =>
-        item.label === '---' ? (
+        item.label === "---" ? (
           <div key={i} className="context-menu-separator" />
         ) : (
           <button
             key={i}
-            className={`context-menu-item${item.danger ? ' danger' : ''}`}
+            className={`context-menu-item${item.danger ? " danger" : ""}`}
             disabled={item.disabled}
-            onClick={() => { item.action(); onClose(); }}
+            onClick={() => {
+              item.action();
+              onClose();
+            }}
           >
             {item.label}
           </button>
-        )
+        ),
       )}
     </div>
   );

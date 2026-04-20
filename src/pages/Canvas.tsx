@@ -1,56 +1,46 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useStore }  from '../store/useStore';
-import { fetchProject, saveProject, toggleProjectPrivacy } from '../lib/firestoreHelpers';
-import { emptyAutomaton }  from '../lib/utils';
-import { VisibilityIcon, VisibilityOffIcon } from '../components/ui/Icons';
-import FlowCanvas    from '../components/canvas/FlowCanvas';
-import Sidebar       from '../components/sidebar/Sidebar';
-import type { Automaton } from '../types';
+import { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useStore } from "../store/useStore";
+import { fetchProject, saveProject, toggleProjectPrivacy } from "../lib/firestoreHelpers";
+import { emptyAutomaton } from "../lib/utils";
+import { VisibilityIcon, VisibilityOffIcon } from "../components/ui/Icons";
+import FlowCanvas from "../components/canvas/FlowCanvas";
+import Sidebar from "../components/sidebar/Sidebar";
+import type { Automaton } from "../types";
 
 export default function Canvas() {
-  const { id }   = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const {
-    activeProject, user, setActiveProject, patchActiveProject,
-  } = useStore();
+  const { activeProject, user, setActiveProject, patchActiveProject } = useStore();
   const [isRenamingProject, setIsRenamingProject] = useState(false);
-  const [projectNameInput, setProjectNameInput] = useState('');
+  const [projectNameInput, setProjectNameInput] = useState("");
   const [isProjectReadyForSave, setIsProjectReadyForSave] = useState(false);
   const [isPrivate, setIsPrivate] = useState<boolean>(true);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedRef = useRef<string>('');
+  const lastSavedRef = useRef<string>("");
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
 
     const load = async () => {
-      console.log("[Canvas load] start for id:", id, "user:", user ? user.uid : 'none');
       setIsProjectReadyForSave(false);
 
-      if (id.startsWith('new-')) {
-        console.log("[Canvas load] creating new project");
-        setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+      if (id.startsWith("new-")) {
+        setActiveProject(emptyAutomaton(id, "Untitled", "NFA"));
         if (user) setIsProjectReadyForSave(true);
         return;
       }
 
-      console.log("[Canvas load] fetching project from DB");
       const card = await fetchProject(id);
       if (cancelled) return;
 
       if (card) {
-        console.log("[Canvas load] fetched card, private:", card.private);
-        console.log("[Canvas load] parsing and setting project");
         const parsed = JSON.parse(card.automatonJson) as Automaton;
         setActiveProject(parsed);
         setIsPrivate(card.private);
         if (user) setIsProjectReadyForSave(true);
-        return;
-      } else {
-        console.log("[Canvas load] card not found or permission denied by rules");
       }
     };
 
@@ -58,7 +48,6 @@ export default function Canvas() {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   useEffect(() => {
@@ -97,23 +86,33 @@ export default function Canvas() {
   };
 
   const handleTogglePrivacy = async () => {
-    if (!id || !user || id.startsWith('new-')) return;
+    if (!id || !user || id.startsWith("new-")) return;
     const newPrivate = !isPrivate;
     setIsPrivate(newPrivate);
     await toggleProjectPrivacy(id, newPrivate);
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        height: 48, zIndex: 10,
-        background: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center',
-        padding: '0 16px', gap: 12,
-      }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Dashboard</button>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 48,
+          zIndex: 10,
+          background: "var(--bg-surface)",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          padding: "0 16px",
+          gap: 12,
+        }}
+      >
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate("/")}>
+          ← Dashboard
+        </button>
         {activeProject && (
           <>
             {isRenamingProject ? (
@@ -121,46 +120,55 @@ export default function Canvas() {
                 <input
                   className="input"
                   value={projectNameInput}
-                  onChange={e => setProjectNameInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') commitRenameProject();
-                    if (e.key === 'Escape') setIsRenamingProject(false);
+                  onChange={(e) => setProjectNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRenameProject();
+                    if (e.key === "Escape") setIsRenamingProject(false);
                   }}
                   autoFocus
-                  style={{ width: 240, maxWidth: '40vw', height: 30, padding: '4px 10px' }}
+                  style={{ width: 240, maxWidth: "40vw", height: 30, padding: "4px 10px" }}
                 />
-                <button className="btn btn-primary btn-sm" onClick={commitRenameProject}>Save</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setIsRenamingProject(false)}>Cancel</button>
+                <button className="btn btn-primary btn-sm" onClick={commitRenameProject}>
+                  Save
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsRenamingProject(false)}
+                >
+                  Cancel
+                </button>
               </>
             ) : (
               <>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{activeProject.name}</span>
-                <button className="btn btn-ghost btn-sm" onClick={startRenameProject}>Rename</button>
+                <button className="btn btn-ghost btn-sm" onClick={startRenameProject}>
+                  Rename
+                </button>
               </>
             )}
-            {user && !id.startsWith('new-') && (
+            {user && !id.startsWith("new-") && (
               <button
                 className="btn btn-ghost"
-                style={{ padding: 4, minHeight: 0, height: 'auto', color: 'var(--text-muted)' }}
+                style={{ padding: 4, minHeight: 0, height: "auto", color: "var(--text-muted)" }}
                 onClick={handleTogglePrivacy}
                 title={isPrivate ? "Make public" : "Make private"}
               >
                 {!isPrivate ? <VisibilityIcon /> : <VisibilityOffIcon />}
               </button>
             )}
-            <span className={`badge ${activeProject.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>
+            <span className={`badge ${activeProject.type === "DFA" ? "badge-dfa" : "badge-nfa"}`}>
               {activeProject.type}
             </span>
           </>
         )}
         {!user && (
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" }}>
             Not signed in — changes won't be saved to cloud
           </span>
         )}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, marginTop: 48, overflow: 'hidden' }}>
+      <div style={{ display: "flex", flex: 1, marginTop: 48, overflow: "hidden" }}>
         <FlowCanvas readOnly={false} />
         <Sidebar projectId={id} />
       </div>

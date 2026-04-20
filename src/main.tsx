@@ -1,21 +1,21 @@
-import { StrictMode, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './lib/firebase';
-import { useStore } from './store/useStore';
-import Dashboard from './pages/Dashboard';
-import Canvas from './pages/Canvas';
-import ViewOnly from './pages/ViewOnly';
-import './index.css';
-import 'reactflow/dist/style.css';
+import { StrictMode, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./lib/firebase";
+import { useStore } from "./store/useStore";
+import Dashboard from "./pages/Dashboard";
+import Canvas from "./pages/Canvas";
+import ViewOnly from "./pages/ViewOnly";
+import "./index.css";
+import "reactflow/dist/style.css";
 
 function App() {
-  const setUser = useStore(s => s.setUser);
+  const setUser = useStore((s) => s.setUser);
 
   useEffect(() => {
     if (!auth) return;
-    const unsub = onAuthStateChanged(auth, user => setUser(user));
+    const unsub = onAuthStateChanged(auth, (user) => setUser(user));
     return unsub;
   }, [setUser]);
 
@@ -32,7 +32,7 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>,

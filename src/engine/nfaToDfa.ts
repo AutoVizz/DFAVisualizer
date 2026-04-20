@@ -1,6 +1,6 @@
-import type { Automaton, State, Transition } from '../types';
-import { epsilonClosure } from './epsilonClosure';
-import { autoLayout } from './autoLayout';
+import type { Automaton, State, Transition } from "../types";
+import { epsilonClosure } from "./epsilonClosure";
+import { autoLayout } from "./autoLayout";
 
 const MAX_STATES = 100;
 
@@ -17,19 +17,19 @@ function move(automaton: Automaton, states: Set<string>, symbol: string): Set<st
 }
 
 function setKey(s: Set<string>): string {
-  return Array.from(s).sort().join(',');
+  return Array.from(s).sort().join(",");
 }
 
 export function nfaToDfa(nfa: Automaton): Automaton {
-  const startState = nfa.states.find(s => s.isStart);
+  const startState = nfa.states.find((s) => s.isStart);
   if (!startState) {
-    throw new Error('NFA has no start state');
+    throw new Error("NFA has no start state");
   }
 
-  const alphabet = [...new Set(nfa.alphabet.filter(sym => sym !== 'ε'))];
+  const alphabet = [...new Set(nfa.alphabet.filter((sym) => sym !== "ε"))];
 
   const dfaStateMap = new Map<string, string>();
-  const dfaStates: State[]      = [];
+  const dfaStates: State[] = [];
   const dfaTransitions: Transition[] = [];
 
   let labelIndex = 0;
@@ -38,14 +38,14 @@ export function nfaToDfa(nfa: Automaton): Automaton {
     if (dfaStateMap.has(subsetKey)) return dfaStateMap.get(subsetKey)!;
 
     if (dfaStates.length >= MAX_STATES) {
-      throw new Error('MAX_STATE_LIMIT_EXCEEDED');
+      throw new Error("MAX_STATE_LIMIT_EXCEEDED");
     }
 
-    const id    = crypto.randomUUID();
+    const id = crypto.randomUUID();
     const label = `q${labelIndex++}`;
-    const isStart  = dfaStates.length === 0;
-    const isAccept = Array.from(subset).some(sid =>
-      nfa.states.find(s => s.id === sid)?.isAccept ?? false,
+    const isStart = dfaStates.length === 0;
+    const isAccept = Array.from(subset).some(
+      (sid) => nfa.states.find((s) => s.id === sid)?.isAccept ?? false,
     );
 
     dfaStates.push({ id, label, isStart, isAccept, position: { x: 0, y: 0 } });
@@ -54,7 +54,7 @@ export function nfaToDfa(nfa: Automaton): Automaton {
   }
 
   const startSubset = epsilonClosure(nfa, new Set([startState.id]));
-  const startKey    = setKey(startSubset);
+  const startKey = setKey(startSubset);
   getOrCreate(startKey, startSubset);
 
   const worklist: string[] = [startKey];
@@ -65,11 +65,11 @@ export function nfaToDfa(nfa: Automaton): Automaton {
     if (processed.has(currentKey)) continue;
     processed.add(currentKey);
 
-    const currentSubset = new Set(currentKey ? currentKey.split(',') : []);
+    const currentSubset = new Set(currentKey ? currentKey.split(",") : []);
     const fromId = dfaStateMap.get(currentKey)!;
 
     for (const sym of alphabet) {
-      const moved  = move(nfa, currentSubset, sym);
+      const moved = move(nfa, currentSubset, sym);
       const closed = epsilonClosure(nfa, moved);
 
       const toKey = setKey(closed);
@@ -92,7 +92,7 @@ export function nfaToDfa(nfa: Automaton): Automaton {
   return autoLayout({
     id: crypto.randomUUID(),
     name: `${nfa.name} (DFA)`,
-    type: 'DFA',
+    type: "DFA",
     states: dfaStates,
     alphabet,
     transitions: dfaTransitions,

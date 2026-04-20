@@ -1,12 +1,12 @@
-import type { Automaton, State, Transition } from '../types';
-import { autoLayout } from './autoLayout';
+import type { Automaton, State, Transition } from "../types";
+import { autoLayout } from "./autoLayout";
 
 export function minimize(dfa: Automaton): Automaton {
-  if (dfa.type !== 'DFA') {
-    throw new Error('minimize() requires a DFA, not an NFA');
+  if (dfa.type !== "DFA") {
+    throw new Error("minimize() requires a DFA, not an NFA");
   }
 
-  const dfaAlphabet = dfa.alphabet.filter(sym => sym !== 'ε');
+  const dfaAlphabet = dfa.alphabet.filter((sym) => sym !== "ε");
   for (const state of dfa.states) {
     for (const sym of dfaAlphabet) {
       let count = 0;
@@ -14,10 +14,14 @@ export function minimize(dfa: Automaton): Automaton {
         if (t.from === state.id && t.symbols.includes(sym)) count++;
       }
       if (count === 0) {
-        throw new Error(`Invalid DFA: State '${state.label}' is missing a transition for symbol '${sym}'.`);
+        throw new Error(
+          `Your DFA is incomplete: state "${state.label}" doesn't have a transition for symbol "${sym}".`,
+        );
       }
       if (count > 1) {
-        throw new Error(`Invalid DFA: State '${state.label}' has multiple transitions for symbol '${sym}'.`);
+        throw new Error(
+          `Your DFA is invalid: state "${state.label}" has multiple transitions for symbol "${sym}".`,
+        );
       }
     }
   }
@@ -26,13 +30,13 @@ export function minimize(dfa: Automaton): Automaton {
     return { ...dfa, id: crypto.randomUUID(), minimizedDfaId: null };
   }
 
-  const startState = dfa.states.find(s => s.isStart);
+  const startState = dfa.states.find((s) => s.isStart);
   if (!startState) {
-    throw new Error('DFA has no start state');
+    throw new Error("DFA has no start state");
   }
 
   const reachable = new Set<string>();
-  const queue     = [startState.id];
+  const queue = [startState.id];
   while (queue.length > 0) {
     const curr = queue.shift()!;
     if (reachable.has(curr)) continue;
@@ -44,12 +48,12 @@ export function minimize(dfa: Automaton): Automaton {
     }
   }
 
-  const reachableStates      = dfa.states.filter(s => reachable.has(s.id));
+  const reachableStates = dfa.states.filter((s) => reachable.has(s.id));
   const reachableTransitions = dfa.transitions.filter(
-    t => reachable.has(t.from) && reachable.has(t.to),
+    (t) => reachable.has(t.from) && reachable.has(t.to),
   );
 
-  const alphabet = dfa.alphabet.filter(sym => sym !== 'ε');
+  const alphabet = dfa.alphabet.filter((sym) => sym !== "ε");
 
   const delta = new Map<string, string>();
   for (const t of reachableTransitions) {
@@ -58,14 +62,14 @@ export function minimize(dfa: Automaton): Automaton {
     }
   }
 
-  const acceptIds    = new Set(reachableStates.filter(s => s.isAccept).map(s => s.id));
-  const nonAcceptIds = new Set(reachableStates.filter(s => !s.isAccept).map(s => s.id));
+  const acceptIds = new Set(reachableStates.filter((s) => s.isAccept).map((s) => s.id));
+  const nonAcceptIds = new Set(reachableStates.filter((s) => !s.isAccept).map((s) => s.id));
 
   let partitions: Set<string>[] = [];
-  if (acceptIds.size    > 0) partitions.push(acceptIds);
+  if (acceptIds.size > 0) partitions.push(acceptIds);
   if (nonAcceptIds.size > 0) partitions.push(nonAcceptIds);
 
-  const worklist = [...partitions.map(p => new Set(p))];
+  const worklist = [...partitions.map((p) => new Set(p))];
 
   function partitionOf(stateId: string): number {
     for (let i = 0; i < partitions.length; i++) {
@@ -90,8 +94,8 @@ export function minimize(dfa: Automaton): Automaton {
 
       const nextPartitions: Set<string>[] = [];
       for (const partition of partitions) {
-        const intersect = new Set([...partition].filter(s => X.has(s)));
-        const diff      = new Set([...partition].filter(s => !X.has(s)));
+        const intersect = new Set([...partition].filter((s) => X.has(s)));
+        const diff = new Set([...partition].filter((s) => !X.has(s)));
 
         if (intersect.size === 0 || diff.size === 0) {
           nextPartitions.push(partition);
@@ -105,7 +109,7 @@ export function minimize(dfa: Automaton): Automaton {
     }
   }
 
-  const minStates: State[]      = [];
+  const minStates: State[] = [];
   const minTransitions: Transition[] = [];
 
   const partitionToId = new Map<number, string>();
@@ -115,13 +119,13 @@ export function minimize(dfa: Automaton): Automaton {
 
   for (let i = 0; i < partitions.length; i++) {
     const partition = partitions[i];
-    const repId  = Array.from(partition)[0];
-    const repSt  = reachableStates.find(s => s.id === repId)!;
+    const repId = Array.from(partition)[0];
+    const repSt = reachableStates.find((s) => s.id === repId)!;
 
-    const isStart  = i === startPartIdx;
+    const isStart = i === startPartIdx;
     const isAccept = repSt.isAccept;
-    const id       = crypto.randomUUID();
-    const label    = isStart ? 'q0' : `q${labelIndex + 1}`;
+    const id = crypto.randomUUID();
+    const label = isStart ? "q0" : `q${labelIndex + 1}`;
 
     if (!isStart) labelIndex++;
 
@@ -132,7 +136,7 @@ export function minimize(dfa: Automaton): Automaton {
   let counter = 0;
   for (const st of minStates) {
     if (st.isStart) {
-      st.label = 'q0';
+      st.label = "q0";
     } else {
       counter++;
       st.label = `q${counter}`;
@@ -141,8 +145,8 @@ export function minimize(dfa: Automaton): Automaton {
 
   for (let i = 0; i < partitions.length; i++) {
     const partition = partitions[i];
-    const repId     = Array.from(partition)[0];
-    const fromId    = partitionToId.get(i)!;
+    const repId = Array.from(partition)[0];
+    const fromId = partitionToId.get(i)!;
 
     for (const sym of alphabet) {
       const nextStateId = delta.get(`${repId}:${sym}`);
@@ -152,21 +156,21 @@ export function minimize(dfa: Automaton): Automaton {
       const toId = partitionToId.get(toPartIdx)!;
 
       minTransitions.push({
-        id:   crypto.randomUUID(),
+        id: crypto.randomUUID(),
         from: fromId,
-        to:   toId,
+        to: toId,
         symbols: [sym],
       });
     }
   }
 
   return autoLayout({
-    id:            crypto.randomUUID(),
-    name:          `${dfa.name} (Minimized)`,
-    type:          'DFA',
-    states:        minStates,
+    id: crypto.randomUUID(),
+    name: `${dfa.name} (Minimized)`,
+    type: "DFA",
+    states: minStates,
     alphabet,
-    transitions:   minTransitions,
+    transitions: minTransitions,
     minimizedDfaId: null,
   });
 }
