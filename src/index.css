@@ -511,3 +511,88 @@ code, pre, .mono {
   gap: 8px;
   box-shadow: var(--shadow);
 }
+
+/* ── Gemini AI Panel ────────────────────────────────────────── */
+.gemini-btn {
+  width: 100%;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(99,102,241,0.08));
+  border-color: rgba(124,58,237,0.25);
+  color: var(--accent);
+  transition: all 0.2s ease;
+}
+.gemini-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(99,102,241,0.15));
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  color: var(--accent);
+}
+.gemini-result {
+  margin-top: 10px;
+  padding: 11px 13px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.06), rgba(99,102,241,0.04));
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: var(--radius);
+  animation: slideUp 0.2s ease;
+}
+.gemini-result-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.gemini-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.7;
+}
+
+/* ── Probe results table ─────────────────────────────────────── */
+.gemini-probes {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gemini-probe-group {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.gemini-probe-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.gemini-probe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.gemini-probe-str {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+

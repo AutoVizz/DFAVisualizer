@@ -169,3 +169,40 @@ export async function updateProjectMinimizedId(projectId: string, hash: string):
     console.warn("[updateProjectMinimizedId] ignored permission failure because project missing or unowned.");
   }
 }
+
+export async function fetchAiSummary(hash: string): Promise<string | null> {
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, 'minimizedDfas', hash));
+    if (!snap.exists()) return null;
+    const data = snap.data() as { aiSummary?: string };
+    return data.aiSummary ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeAiSummary(
+  hash: string,
+  automaton: Automaton,
+  canonicalString: string,
+  ownerId: string,
+  summary: string,
+): Promise<void> {
+  if (!db || !ownerId) return;
+  try {
+    await setDoc(
+      doc(db, 'minimizedDfas', hash),
+      {
+        ownerId,
+        private:        false,
+        automatonJson:  JSON.stringify(automaton),
+        canonicalString,
+        aiSummary:      summary,
+      },
+      { merge: true },
+    );
+  } catch (err) {
+    console.warn('[writeAiSummary] failed:', err);
+  }
+}

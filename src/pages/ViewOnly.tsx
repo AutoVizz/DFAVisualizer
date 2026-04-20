@@ -58,7 +58,7 @@ export default function ViewOnly() {
       {/* View-only canvas */}
       <div style={{ flex: 1, position: 'relative' }}>
         <div className="viewonly-banner">
-          <VisibilityIcon size={16} /> Read-only view — use "Import" to edit this automaton
+          <VisibilityIcon sx={{ fontSize: 16 }} /> Read-only view — use "Import" to edit this automaton
         </div>
         <FlowCanvas readOnly={true} projectOverride={viewOnlyProject} />
       </div>

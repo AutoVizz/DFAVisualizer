@@ -106,7 +106,7 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
           onClick={handleSave}
           title={!user ? 'Sign in to save' : ''}
         >
-          <SaveIcon size={16} /> Save Project
+          <SaveIcon sx={{ fontSize: 16 }} /> Save Project
         </button>
 
         {!user && (

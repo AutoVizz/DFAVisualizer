@@ -462,7 +462,13 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
     if (!activeProject) return;
     const [fromId, toId] = edgeKey.split('__');
     let symbols = [...new Set(rawValue.split(',').map(s => s.trim()).filter(Boolean))];
-    if (symbols.length === 0) return;
+    if (symbols.length === 0) {
+      if (activeProject.type === 'NFA') {
+        symbols = ['ε'];
+      } else {
+        return;
+      }
+    }
 
     if (activeProject.type === 'DFA') {
       const conflicts = new Set<string>();
@@ -615,6 +621,7 @@ export default function FlowCanvas({ readOnly = false, projectOverride = null }:
       {pending && (
         <EdgePopover
           x={pending.x} y={pending.y}
+          isNFA={activeProject?.type === 'NFA'}
           onConfirm={confirmTransition}
           onCancel={() => setPending(null)}
         />

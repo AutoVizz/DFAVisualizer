@@ -3,11 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 interface EdgePopoverProps {
   x:         number;
   y:         number;
+  isNFA?:    boolean;
   onConfirm: (symbols: string[]) => void;
   onCancel:  () => void;
 }
 
-export default function EdgePopover({ x, y, onConfirm, onCancel }: EdgePopoverProps) {
+export default function EdgePopover({ x, y, isNFA, onConfirm, onCancel }: EdgePopoverProps) {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -20,8 +21,15 @@ export default function EdgePopover({ x, y, onConfirm, onCancel }: EdgePopoverPr
   }, [onCancel]);
 
   const handleConfirm = () => {
-    const raw = value.split(',').map(s => s.trim()).filter(Boolean);
-    if (raw.length === 0) { setError('Enter at least one symbol'); return; }
+    let raw = value.split(',').map(s => s.trim()).filter(Boolean);
+    if (raw.length === 0) {
+      if (isNFA) {
+        raw = ['ε'];
+      } else {
+        setError('Enter at least one symbol');
+        return;
+      }
+    }
     onConfirm(raw);
   };
 
@@ -36,7 +44,7 @@ export default function EdgePopover({ x, y, onConfirm, onCancel }: EdgePopoverPr
       <input
         ref={inputRef}
         className="input"
-        placeholder='e.g. a, b or ε'
+        placeholder={isNFA ? 'e.g. a, b (leave empty for ε)' : 'e.g. a, b'}
         value={value}
         onChange={e => { setValue(e.target.value); setError(''); }}
         onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); }}

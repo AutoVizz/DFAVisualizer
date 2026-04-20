@@ -3,6 +3,7 @@ import AlphabetEditor     from './AlphabetEditor';
 import StringSimulator    from './StringSimulator';
 import ActionsPanel       from './ActionsPanel';
 import ErrorBanner        from './ErrorBanner';
+import GeminiPanel        from './GeminiPanel';
 
 interface SidebarProps {
   projectId?: string;
@@ -32,6 +33,7 @@ export default function Sidebar({ projectId }: SidebarProps) {
       <ErrorBanner />
       <AlphabetEditor />
       <StringSimulator />
+      <GeminiPanel />
       <ActionsPanel projectId={projectId} />
     </aside>
   );

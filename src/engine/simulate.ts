@@ -1,23 +1,6 @@
 import type { Automaton, SimulationResult } from '../types';
 import { epsilonClosure } from './epsilonClosure';
 
-function validateDfaCompleteness(automaton: Automaton): void {
-  if (automaton.type !== 'DFA') return;
-
-  for (const state of automaton.states) {
-    for (const symbol of automaton.alphabet) {
-      const hasOutgoing = automaton.transitions.some(
-        t => t.from === state.id && t.symbols.includes(symbol),
-      );
-
-      if (!hasOutgoing) {
-        throw new Error(
-          `INVALID_DFA: missing transition from ${state.label} on symbol '${symbol}'`,
-        );
-      }
-    }
-  }
-}
 
 function move(automaton: Automaton, states: Set<string>, symbol: string): Set<string> {
   const result = new Set<string>();
@@ -32,7 +15,6 @@ function move(automaton: Automaton, states: Set<string>, symbol: string): Set<st
 }
 
 export function simulate(automaton: Automaton, input: string): SimulationResult {
-  validateDfaCompleteness(automaton);
 
   const startState = automaton.states.find(s => s.isStart);
   if (!startState) {
