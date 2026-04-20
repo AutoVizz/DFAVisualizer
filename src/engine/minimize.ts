@@ -5,6 +5,23 @@ export function minimize(dfa: Automaton): Automaton {
   if (dfa.type !== 'DFA') {
     throw new Error('minimize() requires a DFA, not an NFA');
   }
+
+  const dfaAlphabet = dfa.alphabet.filter(sym => sym !== 'ε');
+  for (const state of dfa.states) {
+    for (const sym of dfaAlphabet) {
+      let count = 0;
+      for (const t of dfa.transitions) {
+        if (t.from === state.id && t.symbols.includes(sym)) count++;
+      }
+      if (count === 0) {
+        throw new Error(`Invalid DFA: State '${state.label}' is missing a transition for symbol '${sym}'.`);
+      }
+      if (count > 1) {
+        throw new Error(`Invalid DFA: State '${state.label}' has multiple transitions for symbol '${sym}'.`);
+      }
+    }
+  }
+
   if (dfa.states.length === 0) {
     return { ...dfa, id: crypto.randomUUID(), minimizedDfaId: null };
   }

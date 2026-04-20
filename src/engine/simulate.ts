@@ -24,27 +24,40 @@ export function simulate(automaton: Automaton, input: string): SimulationResult 
   const symbols = input === '' ? [] : Array.from(input);
 
   if (automaton.type === 'DFA') {
-    let currentId: string | null = startState.id;
+    const dfaAlphabet = automaton.alphabet.filter(a => a !== 'ε');
+    for (const state of automaton.states) {
+      for (const sym of dfaAlphabet) {
+        let count = 0;
+        for (const t of automaton.transitions) {
+          if (t.from === state.id && t.symbols.includes(sym)) count++;
+        }
+        if (count === 0) {
+          throw new Error(`Invalid DFA: State '${state.label}' is missing a transition for symbol '${sym}'.`);
+        }
+        if (count > 1) {
+          throw new Error(`Invalid DFA: State '${state.label}' has multiple transitions for symbol '${sym}'.`);
+        }
+      }
+    }
+
+    let currentId: string = startState.id;
     const history: string[][] = [[currentId]];
 
     for (const sym of symbols) {
-      if (currentId === null) {
-        history.push([]);
-        continue;
-      }
       const nextId = (() => {
         for (const t of automaton.transitions) {
           if (t.from === currentId && t.symbols.includes(sym)) return t.to;
         }
         return null;
       })();
+      if (!nextId) {
+        throw new Error(`Invalid input: Symbol '${sym}' is not in the alphabet.`);
+      }
       currentId = nextId;
-      history.push(currentId ? [currentId] : []);
+      history.push([currentId]);
     }
 
-    const finalState = currentId
-      ? automaton.states.find(s => s.id === currentId)
-      : null;
+    const finalState = automaton.states.find(s => s.id === currentId);
     return {
       accepted: finalState?.isAccept ?? false,
       stateHistory: history,
