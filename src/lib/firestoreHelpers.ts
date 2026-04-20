@@ -86,7 +86,9 @@ export async function saveProject(projectId: string, automaton: Automaton, owner
   try {
     const existing = await getDoc(ref);
     if (existing.exists()) {
-      await updateDoc(ref, data);
+      const updateData = { ...data };
+      delete (updateData as any).private;
+      await updateDoc(ref, updateData);
       return;
     }
   } catch (err) {
@@ -116,6 +118,15 @@ export async function renameProject(projectId: string, name: string): Promise<vo
     await updateDoc(doc(db, 'projects', projectId), { name, updatedAt: serverTimestamp() });
   } catch (err) {
     console.warn("[renameProject] failed:", err);
+  }
+}
+
+export async function toggleProjectPrivacy(projectId: string, isPrivate: boolean): Promise<void> {
+  if (!db) return;
+  try {
+    await updateDoc(doc(db, 'projects', projectId), { private: isPrivate, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn("[toggleProjectPrivacy] failed:", err);
   }
 }
 
