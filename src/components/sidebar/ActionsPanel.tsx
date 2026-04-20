@@ -41,7 +41,7 @@ export default function ActionsPanel({ projectId }: ActionsPanelProps) {
     if (!isDFA || isEmpty) return;
 
     dispatchToWorker(
-      { type: 'MINIMIZE', payload: activeProject },
+      { type: 'MINIMIZE_DFA', payload: activeProject },
       async result => {
         const canonical = canonicalize(result);
         const hash      = djb2Hash(canonical);

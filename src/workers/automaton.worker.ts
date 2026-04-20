@@ -18,7 +18,7 @@ self.onmessage = (e: MessageEvent<WorkerInMessage>) => {
         result = minimize(nfaToDfa(msg.payload));
         break;
 
-      case 'MINIMIZE':
+      case 'MINIMIZE_DFA':
         result = minimize(msg.payload);
         break;
 

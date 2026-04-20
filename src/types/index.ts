@@ -32,7 +32,7 @@ export interface SimulationResult {
 export type WorkerInMessage =
   | { type: 'NFA_TO_DFA'; payload: Automaton }
   | { type: 'NFA_TO_MIN_DFA'; payload: Automaton }
-  | { type: 'MINIMIZE';   payload: Automaton }
+  | { type: 'MINIMIZE_DFA';   payload: Automaton }
   | { type: 'THOMPSON';   payload: { regex: string } }
   | { type: 'THOMPSON_TO_MIN_DFA'; payload: { regex: string; extraAlphabet?: string[] } };
 
