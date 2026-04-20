@@ -1,12 +1,12 @@
 import { StrictMode, useEffect } from 'react';
-import { createRoot }     from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth }           from './lib/firebase';
-import { useStore }       from './store/useStore';
-import Dashboard          from './pages/Dashboard';
-import Canvas             from './pages/Canvas';
-import ViewOnly           from './pages/ViewOnly';
+import { auth } from './lib/firebase';
+import { useStore } from './store/useStore';
+import Dashboard from './pages/Dashboard';
+import Canvas from './pages/Canvas';
+import ViewOnly from './pages/ViewOnly';
 import './index.css';
 import 'reactflow/dist/style.css';
 
@@ -20,13 +20,13 @@ function App() {
   }, [setUser]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/DFAVisualizer">
       <Routes>
-        <Route path="/"          element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/canvas/:id" element={<Canvas />} />
-        <Route path="/view"      element={<ViewOnly />} />
-        <Route path="*"          element={<Navigate to="/dashboard" replace />} />
+        <Route path="/view" element={<ViewOnly />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );
