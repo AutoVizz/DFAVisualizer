@@ -22,11 +22,11 @@ function App() {
   return (
     <BrowserRouter basename="/DFAVisualizer">
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/canvas/:id" element={<Canvas />} />
-        <Route path="/view" element={<ViewOnly />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="canvas/:id" element={<Canvas />} />
+        <Route path="view" element={<ViewOnly />} />
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );
