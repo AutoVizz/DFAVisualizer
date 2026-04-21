@@ -21,13 +21,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Debug Gemini Key
-        run: |
-          echo "Key length: ${#VITE_GEMINI_API}"
-          echo "Key prefix: ${VITE_GEMINI_API:0:4}..."
-        env:
-          VITE_GEMINI_API: ${{ secrets.VITE_GEMINI_API }}
-
       - name: Build
         run: npm run build
         env:
