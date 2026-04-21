@@ -48,7 +48,7 @@ VITE_GEMINI_API=
 
 ##### Note:
 - Firebase is considered configured when at least `VITE_FIREBASE_API_KEY` and `VITE_FIREBASE_PROJECT_ID` are set.
-- `VITE_GEMINI_API` is required for the AI summary panel. Create a cloudflare worker with cloudflare.worker and set `GEMINI_API_KEY` in the worker's environment variables.
+- `VITE_GEMINI_API` is required for the AI summary panel. Create a cloudflare worker with cloudflare.worker and set `GEMINI_API_KEY` in the worker's environment variables. Then put the worker url here.
 
 ## Firebase Setup (Auth + Firestore)
 
