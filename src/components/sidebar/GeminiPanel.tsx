@@ -45,7 +45,7 @@ function prepareAutomaton(automaton: Automaton): { result: Automaton; reduced: b
 }
 
 async function callGemma(
-  token: string,
+  api: string,
   model: string,
   userText: string,
   maxTokens: number,
@@ -59,7 +59,7 @@ async function callGemma(
     contents.push({ role: 'model', parts: [{ text: prefill }] });
   }
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${token}`, {
+  const res = await fetch(`${api}/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -193,7 +193,7 @@ export default function GeminiPanel() {
   if (!activeProject) return null;
 
   const isEmpty = activeProject.states.length === 0;
-  const token = import.meta.env.VITE_GEMINI_TOKEN as string | undefined;
+  const api = import.meta.env.VITE_GEMINI_API as string | undefined;
   const isLoading = phase !== 'idle' && phase !== 'done';
 
   const reset = () => {
@@ -205,8 +205,8 @@ export default function GeminiPanel() {
   };
 
   const handleSummarize = async () => {
-    if (!token) {
-      setError('Set VITE_GEMINI_TOKEN in your .env file or github secrets and restart the dev server.');
+    if (!api) {
+      setError('Set VITE_GEMINI_API in your .env file or github secrets and restart the dev server.');
       return;
     }
     if (isEmpty) return;
@@ -234,7 +234,7 @@ export default function GeminiPanel() {
 
       console.log('[GeminiPanel] Probe 1 start');
       setPhase('probe1');
-      const raw1 = await callGemma(token, 'gemma-3-4b-it', PROBE_PROMPT(ctx, []), 40, PREFILL, [']']);
+      const raw1 = await callGemma(api, 'gemma-3-4b-it', PROBE_PROMPT(ctx, []), 40, PREFILL, [']']);
       console.log('[GeminiPanel] Raw1:', raw1);
 
       setPhase('running1');
@@ -245,7 +245,7 @@ export default function GeminiPanel() {
 
       console.log('[GeminiPanel] Probe 2 start');
       setPhase('probe2');
-      const raw2 = await callGemma(token, 'gemma-3-4b-it', PROBE_PROMPT(ctx, probeRes1), 40, PREFILL, [']']);
+      const raw2 = await callGemma(api, 'gemma-3-4b-it', PROBE_PROMPT(ctx, probeRes1), 40, PREFILL, [']']);
       console.log('[GeminiPanel] Raw2:', raw2);
 
       setPhase('running2');
@@ -257,12 +257,12 @@ export default function GeminiPanel() {
 
       console.log('[GeminiPanel] Predicting');
       setPhase('predicting');
-      const prediction = await callGemma(token, 'gemma-3-12b-it', PREDICT_PROMPT(ctx, allResults), 300);
+      const prediction = await callGemma(api, 'gemma-3-12b-it', PREDICT_PROMPT(ctx, allResults), 300);
       console.log('[GeminiPanel] Prediction:', prediction);
 
       console.log('[GeminiPanel] Summarising');
       setPhase('summarising');
-      const finalSummary = await callGemma(token, 'gemma-3-12b-it', SUMMARISE_PROMPT(prediction, working.alphabet), 40);
+      const finalSummary = await callGemma(api, 'gemma-3-12b-it', SUMMARISE_PROMPT(prediction, working.alphabet), 40);
       console.log('[GeminiPanel] Summary:', finalSummary);
 
       setSummary(finalSummary);

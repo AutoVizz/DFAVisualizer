@@ -1,0 +1,38 @@
+export default {
+  async fetch(request, env) {
+    const allowedOrigins = ["https://autovizz.github.io", "http://localhost:5173"];
+
+    const origin = request.headers.get("Origin");
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : "",
+          "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
+    }
+
+    if (!allowedOrigins.includes(origin)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const url = new URL(request.url);
+    const geminiURL = "https://generativelanguage.googleapis.com" + url.pathname + url.search;
+
+    const response = await fetch(geminiURL, {
+      method: request.method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": env.GEMINI_API_KEY,
+      },
+      body: request.method !== "GET" ? request.body : undefined,
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+  }
+}

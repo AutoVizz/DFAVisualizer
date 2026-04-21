@@ -43,12 +43,12 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
-VITE_GEMINI_TOKEN=
+VITE_GEMINI_API=
 ```
 
 ##### Note:
 - Firebase is considered configured when at least `VITE_FIREBASE_API_KEY` and `VITE_FIREBASE_PROJECT_ID` are set.
-- `VITE_GEMINI_TOKEN` is required for the AI summary panel.
+- `VITE_GEMINI_API` is required for the AI summary panel. Create a cloudflare worker with cloudflare.worker and set `GEMINI_API_KEY` in the worker's environment variables.
 
 ## Firebase Setup (Auth + Firestore)
 
