@@ -1,46 +1,69 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStore }  from '../store/useStore';
-import { fetchProject, saveProject } from '../lib/firestoreHelpers';
-import { emptyAutomaton }  from '../lib/utils';
-import FlowCanvas    from '../components/canvas/FlowCanvas';
-import Sidebar       from '../components/sidebar/Sidebar';
+import { useStore } from '../store/useStore';
+import { fetchProject, saveProject, toggleProjectPrivacy } from '../lib/firestoreHelpers';
+import { emptyAutomaton } from '../lib/utils';
+import { VisibilityIcon, VisibilityOffIcon } from '../components/ui/Icons';
+import FlowCanvas from '../components/canvas/FlowCanvas';
+import Sidebar from '../components/sidebar/Sidebar';
 import type { Automaton } from '../types';
 
 export default function Canvas() {
-  const { id }   = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {
     activeProject, user, setActiveProject, patchActiveProject,
   } = useStore();
   const [isRenamingProject, setIsRenamingProject] = useState(false);
   const [projectNameInput, setProjectNameInput] = useState('');
+  const [isProjectReadyForSave, setIsProjectReadyForSave] = useState(false);
+  const [isPrivate, setIsPrivate] = useState<boolean>(true);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
 
   useEffect(() => {
     if (!id) return;
-
-    const alreadyLoaded = activeProject?.id === id;
-    if (alreadyLoaded) return;
+    let cancelled = false;
 
     const load = async () => {
-      if (user) {
-        const card = await fetchProject(id);
-        if (card) {
-          setActiveProject(JSON.parse(card.automatonJson) as Automaton);
-          return;
-        }
+      console.log("[Canvas load] start for id:", id, "user:", user ? user.uid : 'none');
+      setIsProjectReadyForSave(false);
+
+      if (id.startsWith('new-')) {
+        console.log("[Canvas load] creating new project");
+        setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+        if (user) setIsProjectReadyForSave(true);
+        return;
       }
-      setActiveProject(emptyAutomaton(id, 'Untitled', 'NFA'));
+
+      console.log("[Canvas load] fetching project from DB");
+      const card = await fetchProject(id);
+      if (cancelled) return;
+
+      if (card) {
+        console.log("[Canvas load] fetched card, private:", card.private);
+        console.log("[Canvas load] parsing and setting project");
+        const parsed = JSON.parse(card.automatonJson) as Automaton;
+        setActiveProject(parsed);
+        setIsPrivate(card.private);
+        if (user) setIsProjectReadyForSave(true);
+        return;
+      } else {
+        console.log("[Canvas load] card not found or permission denied by rules");
+      }
     };
 
     load();
-  }, [id, user, activeProject?.id, setActiveProject]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
 
   useEffect(() => {
-    if (!activeProject || !user || !id) return;
+    if (!activeProject || !user || !id || !isProjectReadyForSave) return;
+    if (activeProject.id !== id) return;
     const serialized = JSON.stringify(activeProject);
     if (serialized === lastSavedRef.current) return;
 
@@ -53,7 +76,7 @@ export default function Canvas() {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [activeProject, user, id]);
+  }, [activeProject, user, id, isProjectReadyForSave]);
 
   const startRenameProject = () => {
     if (!activeProject) return;
@@ -71,6 +94,13 @@ export default function Canvas() {
     }
     patchActiveProject({ name: trimmed });
     setIsRenamingProject(false);
+  };
+
+  const handleTogglePrivacy = async () => {
+    if (!id || !user || id.startsWith('new-')) return;
+    const newPrivate = !isPrivate;
+    setIsPrivate(newPrivate);
+    await toggleProjectPrivacy(id, newPrivate);
   };
 
   return (
@@ -107,6 +137,16 @@ export default function Canvas() {
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{activeProject.name}</span>
                 <button className="btn btn-ghost btn-sm" onClick={startRenameProject}>Rename</button>
               </>
+            )}
+            {user && !id.startsWith('new-') && (
+              <button
+                className="btn btn-ghost"
+                style={{ padding: 4, minHeight: 0, height: 'auto', color: 'var(--text-muted)' }}
+                onClick={handleTogglePrivacy}
+                title={isPrivate ? "Make public" : "Make private"}
+              >
+                {!isPrivate ? <VisibilityIcon /> : <VisibilityOffIcon />}
+              </button>
             )}
             <span className={`badge ${activeProject.type === 'DFA' ? 'badge-dfa' : 'badge-nfa'}`}>
               {activeProject.type}
